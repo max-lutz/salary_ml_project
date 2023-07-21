@@ -1,0 +1,9 @@
+# This file may be used to create an environment using:
+# $ conda create --name scrape_env --file requirements.txt --channel conda-forge
+# platform: linux-64
+numpy=1.23.5
+pandas=1.5.2
+requests=2.0.0
+selenium=3.141.0
+linkedin-jobs-scraper=2.1.1
+nltk=3.8.1

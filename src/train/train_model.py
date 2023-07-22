@@ -51,3 +51,49 @@ if __name__ == "__main__":
     preprocessing.fit(X_train)
     X_train_preprocessed = preprocessing.fit_transform(X_train).toarray()
     X_val_preprocessed = preprocessing.transform(X_val).toarray()
+
+    models_list = {
+        'Linear regressor': LinearRegression(),
+        'Ridge': Ridge(),
+        'SGDRegressor': SGDRegressor(),
+        'HuberRegressor': HuberRegressor(),
+        'QuantileRegressor': QuantileRegressor(),
+        'PoissonRegressor': PoissonRegressor(),
+        'GammaRegressor': GammaRegressor(),
+        'Random Forest': RandomForestRegressor(),
+        'SVR': SVR(),
+        'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
+        'Lasso': Lasso(),
+        'ElasticNet': ElasticNet(),
+        'BayesianRidge': BayesianRidge(),
+        'GradientBoostingRegressor': GradientBoostingRegressor()
+    }
+
+    scoring = {'max_error': 'max_error', 'neg_mean_squared_error': 'neg_mean_squared_error', 'r2': 'r2'}
+    columns = ['Model', 'Median fit time', 'Mean max error',
+               'Std max error', 'Mean error', 'Std mean error', 'Mean r2', 'Std r2']
+
+    folds = KFold(n_splits=5, shuffle=True, random_state=0)
+
+    model_perf_matrix = []
+    predictions = pd.DataFrame()
+    for model_name, model in tqdm(models_list.items()):
+        pipeline = Pipeline([
+            ('model', model)
+        ])
+
+        cv_score = cross_validate(pipeline, X_train_preprocessed, y_train, cv=folds,
+                                  scoring=scoring, verbose=0, error_score="raise")
+        # cv_score = np.sqrt(-cross_val_score(pipeline, X, y, cv=folds, scoring=scoring));
+        model_perf_matrix.append([model_name, round(cv_score['fit_time'].mean(), 3),
+                                  round(cv_score['test_max_error'].mean(), 4), round(
+                                      cv_score['test_max_error'].std(), 4),
+                                  round(np.sqrt(-cv_score['test_neg_mean_squared_error']).mean(),
+                                        4), round(np.sqrt(-cv_score['test_neg_mean_squared_error']).std(), 4),
+                                  round(cv_score['test_r2'].mean(), 4), round(cv_score['test_r2'].std(), 4)])
+
+        pipeline.fit(X_train_preprocessed, y_train)
+        predictions[model_name] = pipeline.predict(X_val_preprocessed).T
+
+    df_model_perf = pd.DataFrame(model_perf_matrix, columns=columns)
+    # df_model_perf

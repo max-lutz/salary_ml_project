@@ -11,7 +11,7 @@ from sklearn.svm import SVR
 from lightgbm import LGBMRegressor
 from xgboost.sklearn import XGBRegressor
 from sklearn.kernel_ridge import KernelRidge
-from sklearn.linear_model import ElasticNet, Lasso, BayesianRidge, Ridge
+from sklearn.linear_model import ElasticNet, Lasso, BayesianRidge, Ridge, SGDRegressor, HuberRegressor, QuantileRegressor, PoissonRegressor, GammaRegressor
 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.pipeline import Pipeline
@@ -31,3 +31,23 @@ if __name__ == "__main__":
     X_train, y_train = train.drop(columns=['id', 'target']), train['target'].to_numpy()
     X_val, y_val = val.drop(columns=['id', 'target']), val['target'].to_numpy()
     X_test, y_test = test.drop(columns=['id', 'target']), test['target'].to_numpy()
+
+    text_cols = ['title', 'description']
+    cat_cols = ['location', 'experience']
+
+    # combine text columns in one new column because TfidfVectorizer does not accept multiple columns
+    if (len(text_cols) != 0):
+        X_train['text'] = X_train[text_cols].astype(str).agg(' '.join, axis=1)
+        X_val['text'] = X_val[text_cols].astype(str).agg(' '.join, axis=1)
+        X_test['text'] = X_test[text_cols].astype(str).agg(' '.join, axis=1)
+        text_cols = "text"
+
+    preprocessing = make_column_transformer(
+        (OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=10, sparse_output=False), cat_cols),
+        (TfidfVectorizer(strip_accents='ascii', max_features=1000), text_cols)
+    )
+    # use max_features in vectorizer gridsearchCV
+
+    preprocessing.fit(X_train)
+    X_train_preprocessed = preprocessing.fit_transform(X_train).toarray()
+    X_val_preprocessed = preprocessing.transform(X_val).toarray()

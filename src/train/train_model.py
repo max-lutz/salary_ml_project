@@ -33,6 +33,91 @@ if not exp:
 else:
     experiment_id = exp.experiment_id
 
+hyperparameters = [
+    {
+        'type': 'Ridge',
+        'solver': hp.choice('ridge_solver', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga']),
+        'alpha': hp.quniform('ridge_alpha', 0, 5, 0.01),
+    },
+
+    {
+        'type': 'HuberRegressor',
+        'epsilon': hp.uniform('HuberRegressor_epsilon', 1, 5),
+        'max_iter': hp.quniform('HuberRegressor_max_iter', 1000, 20_000, 1000),
+        'alpha': hp.loguniform('HuberRegressor_alpha', -20, 0),
+    },
+
+    {
+        'type': 'PoissonRegressor',
+        'alpha': hp.quniform('PoissonRegressor_alpha', 0, 5, 0.01),
+        'max_iter': hp.quniform('PoissonRegressor_max_iter', 1000, 20_000, 1000),
+    },
+
+    {
+        'type': 'GammaRegressor',
+        'alpha': hp.quniform('GammaRegressor_alpha', 0, 5, 0.01),
+        'max_iter': hp.quniform('GammaRegressor_max_iter', 1000, 20_000, 1000),
+    },
+
+    {
+        'type': 'SVR',
+        'kernel': hp.choice('SVR_kernel', ['linear', 'poly', 'rbf', 'sigmoid', 'precomputed']),
+        'C': hp.quniform('SVR_C', 0, 5, 0.01),
+        'epsilon': hp.quniform('SVR_epsilon', 0, 5, 0.01),
+    },
+
+    {
+        'type': 'LGBMRegressor',
+        'learning_rate':    hp.uniform('LGBMRegressor_learning_rate', 0.1, 1),
+        'max_depth':        hp.quniform('LGBMRegressor_max_depth', 2, 100, 1),
+        'min_child_weight': hp.quniform('LGBMRegressor_min_child_weight', 1, 50, 1),
+        'colsample_bytree': hp.uniform('LGBMRegressor_colsample_bytree', 0.4, 1),
+        'subsample':        hp.uniform('LGBMRegressor_subsample', 0.6, 1),
+        'num_leaves':       hp.quniform('LGBMRegressor_num_leaves', 1, 200, 1),
+        'min_split_gain':   hp.uniform('LGBMRegressor_min_split_gain', 0, 1),
+        'reg_alpha':        hp.uniform('LGBMRegressor_reg_alpha', 0, 1),
+        'reg_lambda':       hp.uniform('LGBMRegressor_reg_lambda', 0, 1),
+        'n_estimators':     hp.quniform('LGBMRegressor_n_estimators', 10, 500, 10),
+    },
+
+    {
+        'type': 'ElasticNet',
+        'alpha': hp.quniform('ElasticNet_alpha', 0, 5, 0.01),
+        'l1_ratio': hp.quniform('ElasticNet_l1_ratio', 0, 1, 0.01),
+        'max_iter': hp.quniform('ElasticNet_max_iter', 1000, 20_000, 1000),
+    },
+
+    {
+        'type': 'BayesianRidge',
+        'max_iter': hp.quniform('BayesianRidgemax_iter', 1000, 20_000, 1000),
+        'alpha_1': hp.loguniform('BayesianRidgea_lpha_1', -20, 0),
+        'alpha_2': hp.loguniform('BayesianRidgea_lpha_2', -20, 0),
+        'lambda_1': hp.loguniform('BayesianRidge_lambda_1', -20, 0),
+        'lambda_2': hp.loguniform('BayesianRidge_lambda_2', -20, 0),
+    },
+
+    {
+        'type': 'XGBRegressor',
+        'max_depth': hp.quniform('XGBRegressor_max_depth', 3, 15, 1),
+        'n_estimators': hp.quniform('XGBRegressor_n_estimators', 50, 300, 10),
+        'colsample_bytree': hp.quniform('XGBRegressor_colsample_bytree', 0.5, 1.0, 0.1),
+        'min_child_weight': hp.quniform('XGBRegressor_min_child_weight', 0, 10, 1),
+        'subsample': hp.quniform('XGBRegressor_subsample', 0.5, 1.0, 0.1),
+        'learning_rate': hp.quniform('XGBRegressor_learning_rate', 0.1, 0.3, 0.1),
+        'gamma': hp.quniform('XGBRegressor_gamma', 0, 10, 0.1),
+        'reg_alpha': hp.quniform('XGBRegressor_reg_alpha', 0, 10, 0.1),
+        'reg_lambda': hp.quniform('XGBRegressor_reg_lambda', 0, 20, 0.1),
+        'objective': 'reg:squarederror',
+        'eval_metric': 'rmse'
+    },
+
+    {
+        'type': 'KernelRidge',
+        'alpha': hp.quniform('KernelRidge_alpha', 0, 5, 0.01),
+    },
+
+]
+
 
 def objective(params):
     scoring = {'neg_mean_squared_error': 'neg_mean_squared_error'}
@@ -40,8 +125,26 @@ def objective(params):
     regressor = params['type']
 
     del params['type']
-    if regressor == 'ridge':
+    if regressor == 'Ridge':
         clf = Ridge(**params)
+    elif regressor == 'HuberRegressor':
+        clf = HuberRegressor(**params)
+    elif regressor == 'PoissonRegressor':
+        clf = PoissonRegressor(**params)
+    elif regressor == 'GammaRegressor':
+        clf = GammaRegressor(**params)
+    elif regressor == 'SVR':
+        clf = SVR(**params)
+    elif regressor == 'LGBMRegressor':
+        clf = LGBMRegressor(**params, verbosity=-1, force_row_wise=True)
+    elif regressor == 'ElasticNet':
+        clf = ElasticNet(**params)
+    elif regressor == 'BayesianRidge':
+        clf = BayesianRidge(**params)
+    elif regressor == 'XGBRegressor':
+        clf = XGBRegressor(**params)
+    elif regressor == 'KernelRidge':
+        clf = KernelRidge(**params)
     else:
         return 0
 
@@ -129,13 +232,8 @@ if __name__ == "__main__":
     models_preselected = df_model_perf[(df_model_perf['Mean error'] < df_model_perf['Mean error'].min()*1.2) &
                                        (df_model_perf['Median fit time'] < 1)].Model.to_list()
 
-    search_space = hp.choice('classifier_type', [
-        {
-            'type': 'ridge',
-            'solver': hp.choice('solver', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga']),
-            'alpha': hp.quniform('alpha', 0.01, 5, 0.01),
-        }
-    ])
+    regressor_search_space = [h for h in hyperparameters if h['type'] in models_preselected]
+    search_space = hp.choice('regressor', regressor_search_space)
 
     trials = Trials()
     algo = tpe.suggest
@@ -143,4 +241,4 @@ if __name__ == "__main__":
     X = X_train_preprocessed
     y = y_train
 
-    # best_result = fmin(fn=objective, space=search_space, algo=algo, max_evals=32, trials=trials)
+    best_result = fmin(fn=objective, space=search_space, algo=algo, max_evals=1000, trials=trials)

@@ -4,13 +4,12 @@ from tqdm import tqdm
 import os
 
 # import dependencies
-from sklearn.linear_model import LinearRegression, SGDRegressor
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.linear_model import LinearRegression
 from sklearn.svm import SVR
 from lightgbm import LGBMRegressor
 from xgboost.sklearn import XGBRegressor
 from sklearn.kernel_ridge import KernelRidge
-from sklearn.linear_model import ElasticNet, Lasso, BayesianRidge, Ridge, SGDRegressor, HuberRegressor, PoissonRegressor, GammaRegressor
+from sklearn.linear_model import ElasticNet, BayesianRidge, Ridge, HuberRegressor, PoissonRegressor, GammaRegressor
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import Pipeline
@@ -19,14 +18,13 @@ from sklearn.preprocessing import OneHotEncoder
 
 
 from sklearn.model_selection import KFold, train_test_split, cross_validate
-from sklearn.metrics import mean_squared_error
 
 from hyperopt import fmin, tpe, hp, Trials, STATUS_OK, Trials
 import mlflow
 
 
 # setup mlflow directory and experiment
-mlflow_directory = f'file://{os.path.abspath("../mlruns")}'
+mlflow_directory = f'file://{os.path.abspath("../../mlruns")}'
 
 mlflow.set_tracking_uri(uri=mlflow_directory)
 exp = mlflow.get_experiment_by_name(name='Linkedin_salary')
@@ -36,8 +34,30 @@ else:
     experiment_id = exp.experiment_id
 
 
+def objective(params):
+    scoring = {'neg_mean_squared_error': 'neg_mean_squared_error'}
+    folds = KFold(n_splits=5, shuffle=True, random_state=0)
+    regressor = params['type']
+
+    del params['type']
+    if regressor == 'ridge':
+        clf = Ridge(**params)
+    else:
+        return 0
+
+    with mlflow.start_run(experiment_id=experiment_id):
+        mlflow.set_tag('model', regressor)
+        mlflow.log_params(params)
+
+        cv_score = cross_validate(clf, X, y, cv=folds, scoring=scoring, verbose=0, error_score="raise")
+        rmse = round(np.sqrt(-cv_score['test_neg_mean_squared_error']).mean(), 6)
+        mlflow.log_metric('RMSE', rmse)
+
+    return {'loss': rmse, 'status': STATUS_OK}
+
+
 if __name__ == "__main__":
-    df = pd.read_csv('../data/linkedin_jobs.csv')
+    df = pd.read_csv('../../data/linkedin_jobs.csv')
     train, test = train_test_split(df, test_size=0.3, stratify=df['experience'], random_state=0)
     test, val = train_test_split(test, test_size=0.5, stratify=test['experience'], random_state=0)
 
@@ -68,18 +88,15 @@ if __name__ == "__main__":
     models_list = {
         'Linear regressor': LinearRegression(),
         'Ridge': Ridge(),
-        'SGDRegressor': SGDRegressor(),
-        'HuberRegressor': HuberRegressor(),
-        'QuantileRegressor': QuantileRegressor(),
-        'PoissonRegressor': PoissonRegressor(),
-        'GammaRegressor': GammaRegressor(),
-        'Random Forest': RandomForestRegressor(),
+        'HuberRegressor': HuberRegressor(max_iter=1000),
+        'PoissonRegressor': PoissonRegressor(max_iter=10_000),
+        'GammaRegressor': GammaRegressor(max_iter=1000),
         'SVR': SVR(),
         'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
-        'Lasso': Lasso(),
         'ElasticNet': ElasticNet(),
         'BayesianRidge': BayesianRidge(),
-        'GradientBoostingRegressor': GradientBoostingRegressor()
+        'XGBRegressor': XGBRegressor(),
+        'KernelRidge': KernelRidge()
     }
 
     scoring = {'max_error': 'max_error', 'neg_mean_squared_error': 'neg_mean_squared_error', 'r2': 'r2'}
@@ -109,4 +126,21 @@ if __name__ == "__main__":
         predictions[model_name] = pipeline.predict(X_val_preprocessed).T
 
     df_model_perf = pd.DataFrame(model_perf_matrix, columns=columns)
-    # df_model_perf
+    models_preselected = df_model_perf[(df_model_perf['Mean error'] < df_model_perf['Mean error'].min()*1.2) &
+                                       (df_model_perf['Median fit time'] < 1)].Model.to_list()
+
+    search_space = hp.choice('classifier_type', [
+        {
+            'type': 'ridge',
+            'solver': hp.choice('solver', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga']),
+            'alpha': hp.quniform('alpha', 0.01, 5, 0.01),
+        }
+    ])
+
+    trials = Trials()
+    algo = tpe.suggest
+
+    X = X_train_preprocessed
+    y = y_train
+
+    # best_result = fmin(fn=objective, space=search_space, algo=algo, max_evals=32, trials=trials)

@@ -1,26 +1,39 @@
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+import os
 
 # import dependencies
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LinearRegression, SGDRegressor
-from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.svm import SVR
 from lightgbm import LGBMRegressor
 from xgboost.sklearn import XGBRegressor
 from sklearn.kernel_ridge import KernelRidge
-from sklearn.linear_model import ElasticNet, Lasso, BayesianRidge, Ridge, SGDRegressor, HuberRegressor, QuantileRegressor, PoissonRegressor, GammaRegressor
+from sklearn.linear_model import ElasticNet, Lasso, BayesianRidge, Ridge, SGDRegressor, HuberRegressor, PoissonRegressor, GammaRegressor
 
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import Pipeline
 from sklearn.compose import make_column_transformer
 from sklearn.preprocessing import OneHotEncoder
 
 
-from sklearn.model_selection import cross_val_score, GridSearchCV, KFold, StratifiedKFold, train_test_split, cross_validate
+from sklearn.model_selection import KFold, train_test_split, cross_validate
 from sklearn.metrics import mean_squared_error
+
+from hyperopt import fmin, tpe, hp, Trials, STATUS_OK, Trials
+import mlflow
+
+
+# setup mlflow directory and experiment
+mlflow_directory = f'file://{os.path.abspath("../mlruns")}'
+
+mlflow.set_tracking_uri(uri=mlflow_directory)
+exp = mlflow.get_experiment_by_name(name='Linkedin_salary')
+if not exp:
+    experiment_id = mlflow.create_experiment(name='Linkedin_salary', artifact_location=mlflow_directory)
+else:
+    experiment_id = exp.experiment_id
 
 
 if __name__ == "__main__":

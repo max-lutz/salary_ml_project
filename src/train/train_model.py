@@ -1,3 +1,5 @@
+
+import argparse
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -119,6 +121,18 @@ hyperparameters = [
 ]
 
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Query data from linkedin job posts")
+    parser.add_argument("--in", dest="input", required=True,
+                        metavar="input", type=str, help="Path of input file, example: ../../linkedin_jobs.csv")
+    parser.add_argument('--n_evals', dest='n_evals', type=int, help='Number of models to test', default=10)
+
+    print("Parsing arguments")
+    args = parser.parse_args()
+    return args.input, args.n_evals
+
+
 def objective(params):
     scoring = {'neg_mean_squared_error': 'neg_mean_squared_error'}
     folds = KFold(n_splits=5, shuffle=True, random_state=0)
@@ -160,7 +174,13 @@ def objective(params):
 
 
 if __name__ == "__main__":
-    df = pd.read_csv('../../data/linkedin_jobs.csv')
+    skip = False
+    input_path, n_evals = parse_arguments()
+    try:
+        df = pd.read_csv(input_path)
+    except:
+        skip = True
+        print(f"Cannot open file {input_path}")
     train, test = train_test_split(df, test_size=0.3, stratify=df['experience'], random_state=0)
     test, val = train_test_split(test, test_size=0.5, stratify=test['experience'], random_state=0)
 

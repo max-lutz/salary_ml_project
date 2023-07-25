@@ -41,6 +41,7 @@ hyperparameters = [
         'type': 'Ridge',
         'solver': hp.choice('ridge_solver', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga']),
         'alpha': hp.quniform('ridge_alpha', 0, 5, 0.01),
+        'vectorizer_max_features': scope.int(hp.quniform('Ridge_vectorizer_max_features', 100, 10_000, 100)),
     },
 
     {
@@ -48,18 +49,21 @@ hyperparameters = [
         'epsilon': hp.uniform('HuberRegressor_epsilon', 1, 5),
         'max_iter': scope.int(hp.quniform('HuberRegressor_max_iter', 1000, 20_000, 1000)),
         'alpha': hp.loguniform('HuberRegressor_alpha', -20, 0),
+        'vectorizer_max_features': scope.int(hp.quniform('HuberRegressor_vectorizer_max_features', 100, 10_000, 100)),
     },
 
     {
         'type': 'PoissonRegressor',
         'alpha': hp.quniform('PoissonRegressor_alpha', 0, 5, 0.01),
         'max_iter': scope.int(hp.quniform('PoissonRegressor_max_iter', 1000, 20_000, 1000)),
+        'vectorizer_max_features': scope.int(hp.quniform('PoissonRegressor_vectorizer_max_features', 100, 10_000, 100)),
     },
 
     {
         'type': 'GammaRegressor',
         'alpha': hp.quniform('GammaRegressor_alpha', 0, 5, 0.01),
         'max_iter': scope.int(hp.quniform('GammaRegressor_max_iter', 1000, 20_000, 1000)),
+        'vectorizer_max_features': scope.int(hp.quniform('GammaRegressor_vectorizer_max_features', 100, 10_000, 100)),
     },
 
     {
@@ -67,6 +71,7 @@ hyperparameters = [
         'kernel': hp.choice('SVR_kernel', ['linear', 'poly', 'rbf', 'sigmoid', 'precomputed']),
         'C': hp.quniform('SVR_C', 0, 5, 0.01),
         'epsilon': hp.quniform('SVR_epsilon', 0, 5, 0.01),
+        'vectorizer_max_features': scope.int(hp.quniform('SVR_vectorizer_max_features', 100, 10_000, 100)),
     },
 
     {
@@ -80,6 +85,7 @@ hyperparameters = [
         'reg_alpha':        hp.uniform('LGBMRegressor_reg_alpha', 0, 1),
         'reg_lambda':       hp.uniform('LGBMRegressor_reg_lambda', 0, 1),
         'n_estimators':     scope.int(hp.quniform('LGBMRegressor_n_estimators', 10, 500, 10)),
+        'vectorizer_max_features': scope.int(hp.quniform('LGBMRegressor_vectorizer_max_features', 100, 10_000, 100)),
     },
 
     {
@@ -87,6 +93,7 @@ hyperparameters = [
         'alpha': hp.quniform('ElasticNet_alpha', 0, 5, 0.01),
         'l1_ratio': hp.quniform('ElasticNet_l1_ratio', 0, 1, 0.01),
         'max_iter': scope.int(hp.quniform('ElasticNet_max_iter', 1000, 20_000, 1000)),
+        'vectorizer_max_features': scope.int(hp.quniform('ElasticNet_vectorizer_max_features', 100, 10_000, 100)),
     },
 
     {
@@ -96,6 +103,7 @@ hyperparameters = [
         'alpha_2': hp.loguniform('BayesianRidgea_lpha_2', -20, 0),
         'lambda_1': hp.loguniform('BayesianRidge_lambda_1', -20, 0),
         'lambda_2': hp.loguniform('BayesianRidge_lambda_2', -20, 0),
+        'vectorizer_max_features': scope.int(hp.quniform('BayesianRidge_vectorizer_max_features', 100, 10_000, 100)),
     },
 
     {
@@ -110,12 +118,14 @@ hyperparameters = [
         'reg_alpha': hp.quniform('XGBRegressor_reg_alpha', 0, 10, 0.1),
         'reg_lambda': hp.quniform('XGBRegressor_reg_lambda', 0, 20, 0.1),
         'objective': 'reg:squarederror',
-        'eval_metric': 'rmse'
+        'eval_metric': 'rmse',
+        'vectorizer_max_features': scope.int(hp.quniform('XGBRegressor_vectorizer_max_features', 100, 10_000, 100)),
     },
 
     {
         'type': 'KernelRidge',
         'alpha': hp.quniform('KernelRidge_alpha', 0, 5, 0.01),
+        'vectorizer_max_features': scope.int(hp.quniform('KernelRidge_vectorizer_max_features', 100, 10_000, 100)),
     },
 
 ]
@@ -145,13 +155,15 @@ def objective(params):
     scoring = {'neg_mean_squared_error': 'neg_mean_squared_error'}
     folds = KFold(n_splits=5, shuffle=True, random_state=0)
     regressor = params['type']
+    max_features = params['vectorizer_max_features']
 
     preprocessing = make_column_transformer(
         (OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=10, sparse_output=False), cat_cols),
-        (TfidfVectorizer(strip_accents='ascii', max_features=1000), text_cols)
+        (TfidfVectorizer(strip_accents='ascii', max_features=max_features), text_cols)
     )
 
     del params['type']
+    del params['vectorizer_max_features']
     if regressor == 'Ridge':
         model = Ridge(**params)
     elif regressor == 'HuberRegressor':
@@ -181,6 +193,7 @@ def objective(params):
         ('model', model)
     ])
 
+    params['vectorizer_max_features'] = max_features
     with mlflow.start_run(experiment_id=experiment_id):
         mlflow.set_tag('model', regressor)
         mlflow.log_params(params)
@@ -242,14 +255,14 @@ if __name__ == "__main__":
         'Linear regressor': LinearRegression(),
         'Ridge': Ridge(),
         # 'HuberRegressor': HuberRegressor(max_iter=1000),
-        # 'PoissonRegressor': PoissonRegressor(max_iter=10_000),
-        # 'GammaRegressor': GammaRegressor(max_iter=1000),
-        # 'SVR': SVR(),
-        # 'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
-        # 'ElasticNet': ElasticNet(),
-        # 'BayesianRidge': BayesianRidge(),
-        # 'XGBRegressor': XGBRegressor(),
-        # 'KernelRidge': KernelRidge()
+        'PoissonRegressor': PoissonRegressor(max_iter=10_000),
+        'GammaRegressor': GammaRegressor(max_iter=1000),
+        'SVR': SVR(),
+        'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
+        'ElasticNet': ElasticNet(),
+        'BayesianRidge': BayesianRidge(),
+        'XGBRegressor': XGBRegressor(),
+        'KernelRidge': KernelRidge()
     }
     scoring = {'max_error': 'max_error', 'neg_mean_squared_error': 'neg_mean_squared_error', 'r2': 'r2'}
     columns = ['Model', 'Median fit time', 'Mean error']

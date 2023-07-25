@@ -20,6 +20,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import KFold, train_test_split, cross_validate
 
 from hyperopt import fmin, tpe, hp, Trials, STATUS_OK, Trials
+from hyperopt.pyll.base import scope
 import mlflow
 
 
@@ -43,20 +44,20 @@ hyperparameters = [
     {
         'type': 'HuberRegressor',
         'epsilon': hp.uniform('HuberRegressor_epsilon', 1, 5),
-        'max_iter': hp.quniform('HuberRegressor_max_iter', 1000, 20_000, 1000),
+        'max_iter': scope.int(hp.quniform('HuberRegressor_max_iter', 1000, 20_000, 1000)),
         'alpha': hp.loguniform('HuberRegressor_alpha', -20, 0),
     },
 
     {
         'type': 'PoissonRegressor',
         'alpha': hp.quniform('PoissonRegressor_alpha', 0, 5, 0.01),
-        'max_iter': hp.quniform('PoissonRegressor_max_iter', 1000, 20_000, 1000),
+        'max_iter': scope.int(hp.quniform('PoissonRegressor_max_iter', 1000, 20_000, 1000)),
     },
 
     {
         'type': 'GammaRegressor',
         'alpha': hp.quniform('GammaRegressor_alpha', 0, 5, 0.01),
-        'max_iter': hp.quniform('GammaRegressor_max_iter', 1000, 20_000, 1000),
+        'max_iter': scope.int(hp.quniform('GammaRegressor_max_iter', 1000, 20_000, 1000)),
     },
 
     {
@@ -68,28 +69,27 @@ hyperparameters = [
 
     {
         'type': 'LGBMRegressor',
-        'learning_rate':    hp.uniform('LGBMRegressor_learning_rate', 0.1, 1),
-        'max_depth':        hp.quniform('LGBMRegressor_max_depth', 2, 100, 1),
-        'min_child_weight': hp.quniform('LGBMRegressor_min_child_weight', 1, 50, 1),
+        'learning_rate':    hp.uniform('LGBMRegressor_learning_rate', 0.0001, 0.25),
+        'max_depth':        scope.int(hp.quniform('LGBMRegressor_max_depth', 2, 200, 1)),
         'colsample_bytree': hp.uniform('LGBMRegressor_colsample_bytree', 0.4, 1),
         'subsample':        hp.uniform('LGBMRegressor_subsample', 0.6, 1),
-        'num_leaves':       hp.quniform('LGBMRegressor_num_leaves', 1, 200, 1),
+        'num_leaves':       scope.int(hp.quniform('LGBMRegressor_num_leaves', 1, 200, 1)),
         'min_split_gain':   hp.uniform('LGBMRegressor_min_split_gain', 0, 1),
         'reg_alpha':        hp.uniform('LGBMRegressor_reg_alpha', 0, 1),
         'reg_lambda':       hp.uniform('LGBMRegressor_reg_lambda', 0, 1),
-        'n_estimators':     hp.quniform('LGBMRegressor_n_estimators', 10, 500, 10),
+        'n_estimators':     scope.int(hp.quniform('LGBMRegressor_n_estimators', 10, 500, 10)),
     },
 
     {
         'type': 'ElasticNet',
         'alpha': hp.quniform('ElasticNet_alpha', 0, 5, 0.01),
         'l1_ratio': hp.quniform('ElasticNet_l1_ratio', 0, 1, 0.01),
-        'max_iter': hp.quniform('ElasticNet_max_iter', 1000, 20_000, 1000),
+        'max_iter': scope.int(hp.quniform('ElasticNet_max_iter', 1000, 20_000, 1000)),
     },
 
     {
         'type': 'BayesianRidge',
-        'max_iter': hp.quniform('BayesianRidgemax_iter', 1000, 20_000, 1000),
+        'max_iter': scope.int(hp.quniform('BayesianRidgemax_iter', 1000, 20_000, 1000)),
         'alpha_1': hp.loguniform('BayesianRidgea_lpha_1', -20, 0),
         'alpha_2': hp.loguniform('BayesianRidgea_lpha_2', -20, 0),
         'lambda_1': hp.loguniform('BayesianRidge_lambda_1', -20, 0),
@@ -98,13 +98,13 @@ hyperparameters = [
 
     {
         'type': 'XGBRegressor',
-        'max_depth': hp.quniform('XGBRegressor_max_depth', 3, 15, 1),
-        'n_estimators': hp.quniform('XGBRegressor_n_estimators', 50, 300, 10),
-        'colsample_bytree': hp.quniform('XGBRegressor_colsample_bytree', 0.5, 1.0, 0.1),
-        'min_child_weight': hp.quniform('XGBRegressor_min_child_weight', 0, 10, 1),
-        'subsample': hp.quniform('XGBRegressor_subsample', 0.5, 1.0, 0.1),
-        'learning_rate': hp.quniform('XGBRegressor_learning_rate', 0.1, 0.3, 0.1),
-        'gamma': hp.quniform('XGBRegressor_gamma', 0, 10, 0.1),
+        'max_depth': scope.int(hp.quniform('XGBRegressor_max_depth', 3, 15, 1)),
+        'n_estimators': scope.int(hp.quniform('XGBRegressor_n_estimators', 10, 500, 10)),
+        'colsample_bytree': hp.uniform('XGBRegressor_colsample_bytree', 0.5, 1.0),
+        'min_child_weight': scope.int(hp.quniform('XGBRegressor_min_child_weight', 0, 10, 1)),
+        'subsample': hp.uniform('XGBRegressor_subsample', 0.5, 1.0),
+        'learning_rate': hp.uniform('XGBRegressor_learning_rate', 0.0001, 0.25),
+        'gamma': hp.uniform('XGBRegressor_gamma', 0, 1),
         'reg_alpha': hp.quniform('XGBRegressor_reg_alpha', 0, 10, 0.1),
         'reg_lambda': hp.quniform('XGBRegressor_reg_lambda', 0, 20, 0.1),
         'objective': 'reg:squarederror',

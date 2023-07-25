@@ -146,35 +146,47 @@ def objective(params):
     folds = KFold(n_splits=5, shuffle=True, random_state=0)
     regressor = params['type']
 
+    preprocessing = make_column_transformer(
+        (OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=10, sparse_output=False), cat_cols),
+        (TfidfVectorizer(strip_accents='ascii', max_features=1000), text_cols)
+    )
+
     del params['type']
     if regressor == 'Ridge':
-        clf = Ridge(**params)
+        model = Ridge(**params)
     elif regressor == 'HuberRegressor':
-        clf = HuberRegressor(**params)
+        model = HuberRegressor(**params)
     elif regressor == 'PoissonRegressor':
-        clf = PoissonRegressor(**params)
+        model = PoissonRegressor(**params)
     elif regressor == 'GammaRegressor':
-        clf = GammaRegressor(**params)
+        model = GammaRegressor(**params)
     elif regressor == 'SVR':
-        clf = SVR(**params)
+        model = SVR(**params)
     elif regressor == 'LGBMRegressor':
-        clf = LGBMRegressor(**params, verbosity=-1, force_row_wise=True)
+        model = LGBMRegressor(**params, verbosity=-1, force_row_wise=True)
     elif regressor == 'ElasticNet':
-        clf = ElasticNet(**params)
+        model = ElasticNet(**params)
     elif regressor == 'BayesianRidge':
-        clf = BayesianRidge(**params)
+        model = BayesianRidge(**params)
     elif regressor == 'XGBRegressor':
-        clf = XGBRegressor(**params)
+        model = XGBRegressor(**params)
     elif regressor == 'KernelRidge':
-        clf = KernelRidge(**params)
+        model = KernelRidge(**params)
     else:
         return 0
+
+    pipeline = Pipeline([
+        ('preprocessing', preprocessing),
+        ('to_dense', DenseTransformer()),
+        ('model', model)
+    ])
 
     with mlflow.start_run(experiment_id=experiment_id):
         mlflow.set_tag('model', regressor)
         mlflow.log_params(params)
+        mlflow.sklearn.log_model(sk_model=pipeline, artifact_path='salary_models', registered_model_name=regressor)
 
-        cv_score = cross_validate(clf, X, y, cv=folds, scoring=scoring, verbose=0, error_score="raise")
+        cv_score = cross_validate(pipeline, X, y, cv=folds, scoring=scoring, verbose=0, error_score="raise")
         rmse = round(np.sqrt(-cv_score['test_neg_mean_squared_error']).mean(), 6)
         mlflow.log_metric('RMSE', rmse)
 
@@ -229,15 +241,15 @@ if __name__ == "__main__":
     models_list = {
         'Linear regressor': LinearRegression(),
         'Ridge': Ridge(),
-        'HuberRegressor': HuberRegressor(max_iter=1000),
-        'PoissonRegressor': PoissonRegressor(max_iter=10_000),
-        'GammaRegressor': GammaRegressor(max_iter=1000),
-        'SVR': SVR(),
-        'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
-        'ElasticNet': ElasticNet(),
-        'BayesianRidge': BayesianRidge(),
-        'XGBRegressor': XGBRegressor(),
-        'KernelRidge': KernelRidge()
+        # 'HuberRegressor': HuberRegressor(max_iter=1000),
+        # 'PoissonRegressor': PoissonRegressor(max_iter=10_000),
+        # 'GammaRegressor': GammaRegressor(max_iter=1000),
+        # 'SVR': SVR(),
+        # 'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
+        # 'ElasticNet': ElasticNet(),
+        # 'BayesianRidge': BayesianRidge(),
+        # 'XGBRegressor': XGBRegressor(),
+        # 'KernelRidge': KernelRidge()
     }
     scoring = {'max_error': 'max_error', 'neg_mean_squared_error': 'neg_mean_squared_error', 'r2': 'r2'}
     columns = ['Model', 'Median fit time', 'Mean error']
@@ -263,15 +275,15 @@ if __name__ == "__main__":
     models_preselected = df_model_perf[(df_model_perf['Mean error'] < df_model_perf['Mean error'].min()*1.2) &
                                        (df_model_perf['Median fit time'] < 1)].Model.to_list()
 
-    print(df_model_perf)
+    # print(df_model_perf)
 
-    # regressor_search_space = [h for h in hyperparameters if h['type'] in models_preselected]
-    # search_space = hp.choice('regressor', regressor_search_space)
+    regressor_search_space = [h for h in hyperparameters if h['type'] in models_preselected]
+    search_space = hp.choice('regressor', regressor_search_space)
 
-    # trials = Trials()
-    # algo = tpe.suggest
+    trials = Trials()
+    algo = tpe.suggest
 
-    # X = X_train_preprocessed
-    # y = y_train
+    X = X_train
+    y = y_train
 
-    # best_result = fmin(fn=objective, space=search_space, algo=algo, max_evals=n_evals, trials=trials)
+    best_result = fmin(fn=objective, space=search_space, algo=algo, max_evals=n_evals, trials=trials)

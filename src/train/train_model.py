@@ -164,46 +164,40 @@ def parse_arguments():
     return args.input, args.n_evals
 
 
-def objective(params):
-    scoring = {'neg_mean_squared_error': 'neg_mean_squared_error'}
-    folds = KFold(n_splits=5, shuffle=True, random_state=0)
-    regressor = params['type']
-    max_features = params['vectorizer_max_features']
-
-    text_col_1 = 'title'
-    text_col_2 = 'description'
-    cat_cols = ['location', 'experience']
-
-    preprocessing = make_column_transformer(
-        (OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=10, sparse_output=False), cat_cols),
-        (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=max_features), text_col_1),
-        (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=max_features), text_col_2)
-    )
-
-    del params['type']
-    del params['vectorizer_max_features']
-    if regressor == 'Ridge':
+def get_model_from_str(model_name, params):
+    if model_name == 'Ridge':
         model = Ridge(**params)
-    elif regressor == 'HuberRegressor':
-        model = HuberRegressor(**params)
-    elif regressor == 'PoissonRegressor':
+    elif model_name == 'PoissonRegressor':
         model = PoissonRegressor(**params)
-    elif regressor == 'GammaRegressor':
+    elif model_name == 'GammaRegressor':
         model = GammaRegressor(**params)
-    elif regressor == 'SVR':
+    elif model_name == 'SVR':
         model = SVR(**params)
-    elif regressor == 'LGBMRegressor':
+    elif model_name == 'LGBMRegressor':
         model = LGBMRegressor(**params, verbosity=-1, force_row_wise=True)
-    elif regressor == 'ElasticNet':
+    elif model_name == 'ElasticNet':
         model = ElasticNet(**params)
-    elif regressor == 'BayesianRidge':
+    elif model_name == 'BayesianRidge':
         model = BayesianRidge(**params)
-    elif regressor == 'XGBRegressor':
+    elif model_name == 'XGBRegressor':
         model = XGBRegressor(**params)
-    elif regressor == 'KernelRidge':
+    elif model_name == 'KernelRidge':
         model = KernelRidge(**params)
     else:
         return 0
+    return model
+
+
+def objective(params):
+    _, scoring, folds = get_parameters_cross_validation()
+    regressor = params['type']
+    max_features = params['vectorizer_max_features']
+
+    preprocessing = generate_preprocessing_pipeline(max_features=max_features)
+
+    del params['type']
+    del params['vectorizer_max_features']
+    model = get_model_from_str(regressor, params)
 
     pipeline = Pipeline([
         ('preprocessing', preprocessing),
@@ -238,21 +232,62 @@ def load_data(input_path):
     return X_train, y_train, X_val, y_val, X_test, y_test
 
 
-# def aggregate_text_columns(X_train, X_val, X_test, text_cols):
-#     # combine text columns in one new column because TfidfVectorizer does not accept multiple columns
-#     if (len(text_cols) != 0):
-#         X_train['text'] = X_train[text_cols].astype(str).agg(' '.join, axis=1)
-#         X_val['text'] = X_val[text_cols].astype(str).agg(' '.join, axis=1)
-#         X_test['text'] = X_test[text_cols].astype(str).agg(' '.join, axis=1)
-#         text_cols = "text"
-#     return X_train, X_val, X_test, text_cols
+def generate_preprocessing_pipeline(max_features=1000, cat_cols=['location', 'experience'], text_col_1='title', text_col_2='description'):
+    preprocessing = make_column_transformer(
+        (OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=10, sparse_output=False), cat_cols),
+        (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=max_features), text_col_1),
+        (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=max_features), text_col_2)
+    )
+    return preprocessing
+
+
+def get_parameters_cross_validation():
+    models_list = {
+        'Linear regressor': LinearRegression(),
+        'Ridge': Ridge(),
+        'PoissonRegressor': PoissonRegressor(max_iter=10_000),
+        'GammaRegressor': GammaRegressor(max_iter=1000),
+        'SVR': SVR(),
+        'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
+        'ElasticNet': ElasticNet(),
+        'BayesianRidge': BayesianRidge(),
+        'XGBRegressor': XGBRegressor(),
+        'KernelRidge': KernelRidge()
+    }
+    scoring = {'neg_mean_squared_error': 'neg_mean_squared_error'}
+    folds = KFold(n_splits=5, shuffle=True, random_state=0)
+
+    return models_list, scoring, folds
+
+
+def select_base_models():
+    preprocessing = generate_preprocessing_pipeline()
+    models_list, scoring, folds = get_parameters_cross_validation()
+
+    model_perf_matrix = []
+    columns = ['Model', 'Median fit time', 'Mean error']
+    for model_name, model in tqdm(models_list.items()):
+        pipeline = Pipeline([
+            ('preprocessing', preprocessing),
+            ('to_dense', DenseTransformer()),
+            ('model', model)
+        ])
+
+        cv_score = cross_validate(pipeline, X_train, y_train, cv=folds,
+                                  scoring=scoring, verbose=0, error_score="raise")
+        model_perf_matrix.append([model_name, round(cv_score['fit_time'].mean(), 3),
+                                  round(np.sqrt(-cv_score['test_neg_mean_squared_error']).mean(), 4)])
+
+        pipeline.fit(X_train, y_train)
+
+    df_model_perf = pd.DataFrame(model_perf_matrix, columns=columns)
+    models_preselected = df_model_perf[(df_model_perf['Mean error'] < df_model_perf['Mean error'].min()*1.2) &
+                                       (df_model_perf['Median fit time'] < 1)].Model.to_list()
+    return models_preselected
 
 
 if __name__ == "__main__":
     skip = False
-    text_col_1 = 'title'
-    text_col_2 = 'description'
-    cat_cols = ['location', 'experience']
     input_path, n_evals = parse_arguments()
     try:
         X_train, y_train, X_val, y_val, X_test, y_test = load_data(input_path)
@@ -261,66 +296,10 @@ if __name__ == "__main__":
         print(f"Cannot open file {input_path}")
 
     if (not skip):
-        # X_train, X_val, X_test, text_cols = aggregate_text_columns(X_train, X_val, X_test, text_cols)
-
-        preprocessing = make_column_transformer(
-            (OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=10, sparse_output=False), cat_cols),
-            (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=1000), text_col_1),
-            (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=1000), text_col_2)
-        )
-        # use max_features in vectorizer gridsearchCV
-
-        # preprocessing.fit(X_train)
-        # X_train_preprocessed = preprocessing.fit_transform(X_train).toarray()
-        # X_val_preprocessed = preprocessing.transform(X_val).toarray()
-
-        models_list = {
-            'Linear regressor': LinearRegression(),
-            'Ridge': Ridge(),
-            # 'HuberRegressor': HuberRegressor(max_iter=1000),
-            # 'PoissonRegressor': PoissonRegressor(max_iter=10_000),
-            # 'GammaRegressor': GammaRegressor(max_iter=1000),
-            # 'SVR': SVR(),
-            # 'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
-            # 'ElasticNet': ElasticNet(),
-            # 'BayesianRidge': BayesianRidge(),
-            # 'XGBRegressor': XGBRegressor(),
-            # 'KernelRidge': KernelRidge()
-        }
-        scoring = {'max_error': 'max_error', 'neg_mean_squared_error': 'neg_mean_squared_error', 'r2': 'r2'}
-        columns = ['Model', 'Median fit time', 'Mean error']
-        folds = KFold(n_splits=5, shuffle=True, random_state=0)
-
-        model_perf_matrix = []
-        predictions = pd.DataFrame()
-        for model_name, model in tqdm(models_list.items()):
-            pipeline = Pipeline([
-                ('preprocessing', preprocessing),
-                ('to_dense', DenseTransformer()),
-                ('model', model)
-            ])
-
-            cv_score = cross_validate(pipeline, X_train, y_train, cv=folds,
-                                      scoring=scoring, verbose=0, error_score="raise")
-            model_perf_matrix.append([model_name, round(cv_score['fit_time'].mean(), 3),
-                                      round(np.sqrt(-cv_score['test_neg_mean_squared_error']).mean(), 4)])
-
-            pipeline.fit(X_train, y_train)
-            predictions[model_name] = pipeline.predict(X_val).T
-
-        df_model_perf = pd.DataFrame(model_perf_matrix, columns=columns)
-        models_preselected = df_model_perf[(df_model_perf['Mean error'] < df_model_perf['Mean error'].min()*1.2) &
-                                           (df_model_perf['Median fit time'] < 1)].Model.to_list()
-
-        # print(df_model_perf)
-
+        models_preselected = select_base_models()
         regressor_search_space = [h for h in hyperparameters if h['type'] in models_preselected]
         search_space = hp.choice('regressor', regressor_search_space)
-
         trials = Trials()
         algo = tpe.suggest
-
-        X = X_train
-        y = y_train
-
+        X, y = X_train, y_train
         best_result = fmin(fn=objective, space=search_space, algo=algo, max_evals=n_evals, trials=trials)

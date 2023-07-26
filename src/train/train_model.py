@@ -3,6 +3,13 @@
 
 Usage: python train_model.py --in ../../data/linkedin_jobs.csv --n_eval 1
 
+
+Setup rest api: 
+mlflow models serve -m file:///home/maxou1909/Desktop/STREAMLIT_APPS/salary_ml_project/mlruns/dfac3ee2f7454f45b74b57ac25ae0c86/artifacts/salary_models -h 127.0.0.1 -p 8001 --env-manager=local
+
+Query from rest api
+curl -X POST -H "Content-Type:application/json" --data '{"dataframe_split":{"columns":["title", "location", "experience", "description"],"data":[["data analyst","chicago","ENTRY_LEVEL", "test big salary"]]}}' http://127.0.0.1:8001/invocations
+
 '''
 
 import argparse
@@ -163,9 +170,14 @@ def objective(params):
     regressor = params['type']
     max_features = params['vectorizer_max_features']
 
+    text_col_1 = 'title'
+    text_col_2 = 'description'
+    cat_cols = ['location', 'experience']
+
     preprocessing = make_column_transformer(
         (OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=10, sparse_output=False), cat_cols),
-        (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=max_features), text_cols)
+        (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=max_features), text_col_1),
+        (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=max_features), text_col_2)
     )
 
     del params['type']
@@ -226,19 +238,20 @@ def load_data(input_path):
     return X_train, y_train, X_val, y_val, X_test, y_test
 
 
-def aggregate_text_columns(X_train, X_val, X_test, text_cols):
-    # combine text columns in one new column because TfidfVectorizer does not accept multiple columns
-    if (len(text_cols) != 0):
-        X_train['text'] = X_train[text_cols].astype(str).agg(' '.join, axis=1)
-        X_val['text'] = X_val[text_cols].astype(str).agg(' '.join, axis=1)
-        X_test['text'] = X_test[text_cols].astype(str).agg(' '.join, axis=1)
-        text_cols = "text"
-    return X_train, X_val, X_test, text_cols
+# def aggregate_text_columns(X_train, X_val, X_test, text_cols):
+#     # combine text columns in one new column because TfidfVectorizer does not accept multiple columns
+#     if (len(text_cols) != 0):
+#         X_train['text'] = X_train[text_cols].astype(str).agg(' '.join, axis=1)
+#         X_val['text'] = X_val[text_cols].astype(str).agg(' '.join, axis=1)
+#         X_test['text'] = X_test[text_cols].astype(str).agg(' '.join, axis=1)
+#         text_cols = "text"
+#     return X_train, X_val, X_test, text_cols
 
 
 if __name__ == "__main__":
     skip = False
-    text_cols = ['title', 'description']
+    text_col_1 = 'title'
+    text_col_2 = 'description'
     cat_cols = ['location', 'experience']
     input_path, n_evals = parse_arguments()
     try:
@@ -248,64 +261,66 @@ if __name__ == "__main__":
         print(f"Cannot open file {input_path}")
 
     if (not skip):
-        X_train, X_val, X_test, text_cols = aggregate_text_columns(X_train, X_val, X_test, text_cols)
+        # X_train, X_val, X_test, text_cols = aggregate_text_columns(X_train, X_val, X_test, text_cols)
 
-    preprocessing = make_column_transformer(
-        (OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=10, sparse_output=False), cat_cols),
-        (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=1000), text_cols)
-    )
-    # use max_features in vectorizer gridsearchCV
+        preprocessing = make_column_transformer(
+            (OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=10, sparse_output=False), cat_cols),
+            (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=1000), text_col_1),
+            (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=1000), text_col_2)
+        )
+        # use max_features in vectorizer gridsearchCV
 
-    # preprocessing.fit(X_train)
-    # X_train_preprocessed = preprocessing.fit_transform(X_train).toarray()
-    # X_val_preprocessed = preprocessing.transform(X_val).toarray()
+        # preprocessing.fit(X_train)
+        # X_train_preprocessed = preprocessing.fit_transform(X_train).toarray()
+        # X_val_preprocessed = preprocessing.transform(X_val).toarray()
 
-    models_list = {
-        'Linear regressor': LinearRegression(),
-        'Ridge': Ridge(),
-        # 'HuberRegressor': HuberRegressor(max_iter=1000),
-        # 'PoissonRegressor': PoissonRegressor(max_iter=10_000),
-        # 'GammaRegressor': GammaRegressor(max_iter=1000),
-        # 'SVR': SVR(),
-        # 'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
-        # 'ElasticNet': ElasticNet(),
-        # 'BayesianRidge': BayesianRidge(),
-        # 'XGBRegressor': XGBRegressor(),
-        # 'KernelRidge': KernelRidge()
-    }
-    scoring = {'max_error': 'max_error', 'neg_mean_squared_error': 'neg_mean_squared_error', 'r2': 'r2'}
-    columns = ['Model', 'Median fit time', 'Mean error']
-    folds = KFold(n_splits=5, shuffle=True, random_state=0)
+        models_list = {
+            'Linear regressor': LinearRegression(),
+            'Ridge': Ridge(),
+            # 'HuberRegressor': HuberRegressor(max_iter=1000),
+            # 'PoissonRegressor': PoissonRegressor(max_iter=10_000),
+            # 'GammaRegressor': GammaRegressor(max_iter=1000),
+            # 'SVR': SVR(),
+            # 'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
+            # 'ElasticNet': ElasticNet(),
+            # 'BayesianRidge': BayesianRidge(),
+            # 'XGBRegressor': XGBRegressor(),
+            # 'KernelRidge': KernelRidge()
+        }
+        scoring = {'max_error': 'max_error', 'neg_mean_squared_error': 'neg_mean_squared_error', 'r2': 'r2'}
+        columns = ['Model', 'Median fit time', 'Mean error']
+        folds = KFold(n_splits=5, shuffle=True, random_state=0)
 
-    model_perf_matrix = []
-    predictions = pd.DataFrame()
-    for model_name, model in tqdm(models_list.items()):
-        pipeline = Pipeline([
-            ('preprocessing', preprocessing),
-            ('to_dense', DenseTransformer()),
-            ('model', model)
-        ])
+        model_perf_matrix = []
+        predictions = pd.DataFrame()
+        for model_name, model in tqdm(models_list.items()):
+            pipeline = Pipeline([
+                ('preprocessing', preprocessing),
+                ('to_dense', DenseTransformer()),
+                ('model', model)
+            ])
 
-        cv_score = cross_validate(pipeline, X_train, y_train, cv=folds, scoring=scoring, verbose=0, error_score="raise")
-        model_perf_matrix.append([model_name, round(cv_score['fit_time'].mean(), 3),
-                                  round(np.sqrt(-cv_score['test_neg_mean_squared_error']).mean(), 4)])
+            cv_score = cross_validate(pipeline, X_train, y_train, cv=folds,
+                                      scoring=scoring, verbose=0, error_score="raise")
+            model_perf_matrix.append([model_name, round(cv_score['fit_time'].mean(), 3),
+                                      round(np.sqrt(-cv_score['test_neg_mean_squared_error']).mean(), 4)])
 
-        pipeline.fit(X_train, y_train)
-        predictions[model_name] = pipeline.predict(X_val).T
+            pipeline.fit(X_train, y_train)
+            predictions[model_name] = pipeline.predict(X_val).T
 
-    df_model_perf = pd.DataFrame(model_perf_matrix, columns=columns)
-    models_preselected = df_model_perf[(df_model_perf['Mean error'] < df_model_perf['Mean error'].min()*1.2) &
-                                       (df_model_perf['Median fit time'] < 1)].Model.to_list()
+        df_model_perf = pd.DataFrame(model_perf_matrix, columns=columns)
+        models_preselected = df_model_perf[(df_model_perf['Mean error'] < df_model_perf['Mean error'].min()*1.2) &
+                                           (df_model_perf['Median fit time'] < 1)].Model.to_list()
 
-    # print(df_model_perf)
+        # print(df_model_perf)
 
-    regressor_search_space = [h for h in hyperparameters if h['type'] in models_preselected]
-    search_space = hp.choice('regressor', regressor_search_space)
+        regressor_search_space = [h for h in hyperparameters if h['type'] in models_preselected]
+        search_space = hp.choice('regressor', regressor_search_space)
 
-    trials = Trials()
-    algo = tpe.suggest
+        trials = Trials()
+        algo = tpe.suggest
 
-    X = X_train
-    y = y_train
+        X = X_train
+        y = y_train
 
-    best_result = fmin(fn=objective, space=search_space, algo=algo, max_evals=n_evals, trials=trials)
+        best_result = fmin(fn=objective, space=search_space, algo=algo, max_evals=n_evals, trials=trials)

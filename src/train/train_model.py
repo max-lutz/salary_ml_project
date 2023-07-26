@@ -1,3 +1,9 @@
+'''
+
+
+Usage: python train_model.py --in ../../data/linkedin_jobs.csv --n_eval 1
+
+'''
 
 import argparse
 import pandas as pd
@@ -159,7 +165,7 @@ def objective(params):
 
     preprocessing = make_column_transformer(
         (OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=10, sparse_output=False), cat_cols),
-        (TfidfVectorizer(strip_accents='ascii', max_features=max_features), text_cols)
+        (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=max_features), text_cols)
     )
 
     del params['type']
@@ -197,10 +203,13 @@ def objective(params):
     with mlflow.start_run(experiment_id=experiment_id):
         mlflow.set_tag('model', regressor)
         mlflow.log_params(params)
-        mlflow.sklearn.log_model(sk_model=pipeline, artifact_path='salary_models', registered_model_name=regressor)
 
-        cv_score = cross_validate(pipeline, X, y, cv=folds, scoring=scoring, verbose=0, error_score="raise")
+        cv_score = cross_validate(pipeline, X, y, cv=folds, scoring=scoring,
+                                  verbose=0, error_score="raise", return_estimator=True)
         rmse = round(np.sqrt(-cv_score['test_neg_mean_squared_error']).mean(), 6)
+
+        mlflow.sklearn.log_model(sk_model=cv_score['estimator'][0],
+                                 artifact_path='salary_models', registered_model_name=regressor)
         mlflow.log_metric('RMSE', rmse)
 
     return {'loss': rmse, 'status': STATUS_OK}
@@ -243,7 +252,7 @@ if __name__ == "__main__":
 
     preprocessing = make_column_transformer(
         (OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=10, sparse_output=False), cat_cols),
-        (TfidfVectorizer(strip_accents='ascii', max_features=1000), text_cols)
+        (TfidfVectorizer(strip_accents='ascii', stop_words='english', max_features=1000), text_cols)
     )
     # use max_features in vectorizer gridsearchCV
 
@@ -255,14 +264,14 @@ if __name__ == "__main__":
         'Linear regressor': LinearRegression(),
         'Ridge': Ridge(),
         # 'HuberRegressor': HuberRegressor(max_iter=1000),
-        'PoissonRegressor': PoissonRegressor(max_iter=10_000),
-        'GammaRegressor': GammaRegressor(max_iter=1000),
-        'SVR': SVR(),
-        'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
-        'ElasticNet': ElasticNet(),
-        'BayesianRidge': BayesianRidge(),
-        'XGBRegressor': XGBRegressor(),
-        'KernelRidge': KernelRidge()
+        # 'PoissonRegressor': PoissonRegressor(max_iter=10_000),
+        # 'GammaRegressor': GammaRegressor(max_iter=1000),
+        # 'SVR': SVR(),
+        # 'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),
+        # 'ElasticNet': ElasticNet(),
+        # 'BayesianRidge': BayesianRidge(),
+        # 'XGBRegressor': XGBRegressor(),
+        # 'KernelRidge': KernelRidge()
     }
     scoring = {'max_error': 'max_error', 'neg_mean_squared_error': 'neg_mean_squared_error', 'r2': 'r2'}
     columns = ['Model', 'Median fit time', 'Mean error']

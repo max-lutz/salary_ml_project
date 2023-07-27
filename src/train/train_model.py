@@ -20,6 +20,7 @@ import os
 import numpy as np
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import cross_validate
+from sklearn.metrics import mean_squared_error as mse
 
 from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
 import mlflow
@@ -74,15 +75,19 @@ def objective(params):
         mlflow.set_tag('model', regressor)
         mlflow.log_params(params)
 
-        cv_score = cross_validate(pipeline, X, y, cv=folds, scoring=scoring,
+        cv_score = cross_validate(pipeline, X_train, y_train, cv=folds, scoring=scoring,
                                   verbose=0, error_score="raise", return_estimator=True)
-        rmse = round(np.sqrt(-cv_score['test_neg_mean_squared_error']).mean(), 6)
+        rmse_train = round(np.sqrt(-cv_score['test_neg_mean_squared_error']).mean(), 6)
+        rmse_val = round(np.sqrt(mse(y_true=y_val, y_pred=cv_score['estimator'][0].predict(X_val))), 6)
+        rmse_test = round(np.sqrt(mse(y_true=y_test, y_pred=cv_score['estimator'][0].predict(X_test))), 6)
 
         mlflow.sklearn.log_model(sk_model=cv_score['estimator'][0],
                                  artifact_path='salary_models', registered_model_name=regressor)
-        mlflow.log_metric('RMSE', rmse)
+        mlflow.log_metric('RMSE_train', rmse_train)
+        mlflow.log_metric('RMSE_val', rmse_val)
+        mlflow.log_metric('RMSE_test', rmse_test)
 
-    return {'loss': rmse, 'status': STATUS_OK}
+    return {'loss': rmse_val, 'status': STATUS_OK}
 
 
 if __name__ == "__main__":
@@ -100,5 +105,4 @@ if __name__ == "__main__":
         search_space = hp.choice('regressor', regressor_search_space)
         trials = Trials()
         algo = tpe.suggest
-        X, y = X_train, y_train
         best_result = fmin(fn=objective, space=search_space, algo=algo, max_evals=n_evals, trials=trials)

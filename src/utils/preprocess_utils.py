@@ -115,9 +115,10 @@ def preprocess_text(df):
     return df
 
 
-def clean_dataset(df):
+def clean_dataset(df, dropna=True):
     df = df.drop(columns=['link', 'date', 'company'])
     df = df.rename(columns={'salary_numeric': 'target'})
     df = df[['title', 'location', 'experience', 'description', 'target']]
-    df = df[~df['target'].isna()]
+    if (dropna):
+        df = df[~df['target'].isna()]
     return df

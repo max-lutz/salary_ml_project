@@ -6,6 +6,8 @@ python generate_data.py --queries "data analyst, data scientist, data engineer" 
 '''
 
 import sys
+import json
+import requests
 import argparse
 import pandas as pd
 from linkedin_jobs_scraper import LinkedinScraper
@@ -31,6 +33,21 @@ def parse_arguments():
     args = parser.parse_args()
 
 
+def predict(data):
+    url = 'http://127.0.0.1:8001/invocations'
+    data_dict = {
+        "dataframe_split":
+            {
+                "columns": ["title", "location", "experience", "description"],
+                "data": [data]
+            }
+    }
+
+    data_json = json.dumps(data_dict)
+    response = requests.post(url, data=data_json, headers={"Content-Type": "application/json"})
+    return response.json()
+
+
 def on_data(data: EventData):
     row = [[search_keyword, data.title, data.company, data.link, data.place, data.description,
            data.date, EXP_LVL_STR[EXP_LVL_INDEX]]]
@@ -39,7 +56,15 @@ def on_data(data: EventData):
     df = generate_salary(df)
     df = preprocess_text(df)
     df = clean_dataset(df, dropna=False)
-    print(df[['title', 'target']])
+
+    data = df.iloc[0].to_list()
+
+    predicted_salary = int(predict(data[0:-1])['predictions'][0]/1000)*1000
+    if (data[-1]):
+        print('Salary exists')
+        print(f"Title {data[0]}, Predicted salary {predicted_salary}, True salary {data[-1]}")
+    else:
+        print(f"Title {data[0]}, Predicted salary {predicted_salary}, True salary {data[-1]}")
 
 
 if __name__ == '__main__':

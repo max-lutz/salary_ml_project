@@ -1,7 +1,7 @@
 '''
 Script to prepare dataset for training
 
-Usage: python build_dataset.py --in ../../data/linkin_jobs.h5 --out ../../data/preprocessed.csv
+Usage: python build_dataset.py --in ../../data/linkedin_jobs.h5 --out ../../data/preprocessed.zip
 
 '''
 
@@ -47,7 +47,10 @@ if __name__ == '__main__':
         df = clean_dataset(df)
 
         try:
-            df.to_csv(output)
+            if (output[-3:] == "zip"):
+                df.to_csv(output, compression={'method': 'zip', 'archive_name': output.replace('zip', 'csv')})
+            elif (output[-3:] == "csv"):
+                df.to_csv(output)
             print(f'Successfully saved dataset to {output}')
         except:
             print(f'[ERROR] Cannot save file to {output}')

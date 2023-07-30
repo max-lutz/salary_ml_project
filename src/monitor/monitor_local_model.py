@@ -9,6 +9,7 @@ import sys
 import json
 import requests
 import argparse
+import subprocess
 import pandas as pd
 from tqdm import tqdm
 from linkedin_jobs_scraper import LinkedinScraper
@@ -93,10 +94,10 @@ def create_report(train, test, i: int):
         metrics=[
             DatasetDriftMetric(),
             DatasetMissingValuesMetric(),
-            ColumnDriftMetric(column_name="age", stattest="wasserstein"),
-            ColumnSummaryMetric(column_name="age"),
-            ColumnDriftMetric(column_name="education-num", stattest="wasserstein"),
-            ColumnSummaryMetric(column_name="education-num"),
+            ColumnDriftMetric(column_name="target", stattest="wasserstein"),
+            ColumnSummaryMetric(column_name="target"),
+            ColumnDriftMetric(column_name="predictions", stattest="wasserstein"),
+            ColumnSummaryMetric(column_name="predictions"),
         ],
         timestamp=datetime.datetime.now() + datetime.timedelta(days=i),
     )
@@ -139,6 +140,67 @@ def create_project(workspace: WorkspaceBase):
             size=1,
         )
     )
+    project.dashboard.add_panel(
+        DashboardPanelCounter(
+            title="Share of Drifted Features",
+            filter=ReportFilter(metadata_values={}, tag_values=[]),
+            value=PanelValue(
+                metric_id="DatasetDriftMetric",
+                field_path="share_of_drifted_columns",
+                legend="share",
+            ),
+            text="share",
+            agg=CounterAgg.LAST,
+            size=1,
+        )
+    )
+    project.dashboard.add_panel(
+        DashboardPanelPlot(
+            title="Dataset Quality",
+            filter=ReportFilter(metadata_values={}, tag_values=[]),
+            values=[
+                PanelValue(metric_id="DatasetDriftMetric", field_path="share_of_drifted_columns", legend="Drift Share"),
+                PanelValue(
+                    metric_id="DatasetMissingValuesMetric",
+                    field_path=DatasetMissingValuesMetric.fields.current.share_of_missing_values,
+                    legend="Missing Values Share",
+                ),
+            ],
+            plot_type=PlotType.LINE,
+        )
+    )
+    project.dashboard.add_panel(
+        DashboardPanelPlot(
+            title="Age: Wasserstein drift distance",
+            filter=ReportFilter(metadata_values={}, tag_values=[]),
+            values=[
+                PanelValue(
+                    metric_id="ColumnDriftMetric",
+                    metric_args={"column_name.name": "age"},
+                    field_path=ColumnDriftMetric.fields.drift_score,
+                    legend="Drift Score",
+                ),
+            ],
+            plot_type=PlotType.BAR,
+            size=1,
+        )
+    )
+    project.dashboard.add_panel(
+        DashboardPanelPlot(
+            title="Education-num: Wasserstein drift distance",
+            filter=ReportFilter(metadata_values={}, tag_values=[]),
+            values=[
+                PanelValue(
+                    metric_id="ColumnDriftMetric",
+                    metric_args={"column_name.name": "education-num"},
+                    field_path=ColumnDriftMetric.fields.drift_score,
+                    legend="Drift Score",
+                ),
+            ],
+            plot_type=PlotType.BAR,
+            size=1,
+        )
+    )
     project.save()
     return project
 
@@ -159,8 +221,8 @@ if __name__ == '__main__':
 
     train_file, test_file = parse_arguments()
     if ((train_file is not None) and (test_file is not None)):
-        df_train = pd.read_csv(train_file)
-        df_test = pd.read_csv(test_file)
+        df_train = pd.read_csv(train_file).iloc[0:500]
+        df_test = pd.read_csv(test_file).iloc[500:1000]
 
         print("Preparing data")
         for dataset in [df_train, df_test]:
@@ -168,8 +230,10 @@ if __name__ == '__main__':
             for i in tqdm(range(len(dataset))):
                 predictions.append(int(predict(dataset.iloc[i, 1:-1].values.tolist())['predictions'][0]/1000)*1000)
             dataset['predictions'] = predictions
-        print(df_train)
-        print(df_test)
+
+        create_demo_project(df_train, df_test, "workspace")
+
+        subprocess.run(["evidently", "ui"])
 
     else:
         print("Start scrapping to generate data...")

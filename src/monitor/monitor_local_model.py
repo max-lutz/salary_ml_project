@@ -39,8 +39,8 @@ EXP_LVL_INDEX = 0
 
 
 WORKSPACE = "workspace"
-YOUR_PROJECT_NAME = "New Project"
-YOUR_PROJECT_DESCRIPTION = "Test project using Adult dataset."
+YOUR_PROJECT_NAME = "Linkedin jobs salary"
+YOUR_PROJECT_DESCRIPTION = "Monitor salary prediction on the linkedin jobs dataset"
 
 
 def parse_arguments():

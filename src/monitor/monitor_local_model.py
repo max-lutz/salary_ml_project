@@ -19,7 +19,7 @@ from linkedin_jobs_scraper.events import Events, EventData
 from linkedin_jobs_scraper.filters import ExperienceLevelFilters
 
 import datetime
-from evidently import ColumnMapping
+from evidently import ColumnMapping, metrics
 from evidently.metrics import ColumnDriftMetric, ColumnSummaryMetric, DatasetDriftMetric, DatasetMissingValuesMetric, DataDriftTable
 from evidently.metrics import RegressionQualityMetric
 from evidently.metrics import RegressionPredictedVsActualScatter
@@ -91,7 +91,7 @@ def on_data(data: EventData):
 
     data = df.iloc[0].to_list()
 
-    predicted_salary = int(predict(data[0:-1])['prediction'][0]/1000)*1000
+    predicted_salary = int(predict(data[0:-1])['predictions'][0]/1000)*1000
     if (data[-1]):
         print('Salary exists')
         print(f"Title {data[0]}, Predicted salary {predicted_salary}, True salary {data[-1]}")
@@ -99,9 +99,7 @@ def on_data(data: EventData):
         print(f"Title {data[0]}, Predicted salary {predicted_salary}, True salary {data[-1]}")
 
 
-
-
-https://github.com/evidentlyai/evidently/blob/dd6ccb8989e38ceff1b9c27b41d4ae2b10a5fef6/src/evidently/ui/demo_project.py#L75
+# https://github.com/evidentlyai/evidently/blob/dd6ccb8989e38ceff1b9c27b41d4ae2b10a5fef6/src/evidently/ui/demo_project.py#L75
 
 
 def create_report(train, test, i: int):
@@ -117,18 +115,13 @@ def create_report(train, test, i: int):
             DatasetDriftMetric(columns=['target', 'prediction']),
             DatasetMissingValuesMetric(),
             DataDriftTable(columns=['target', 'prediction']),
-            # ColumnDriftMetric(column_name="target", stattest="wasserstein"),
+            ColumnDriftMetric(column_name="target", stattest="wasserstein"),
             ColumnSummaryMetric(column_name="target"),
-            # ColumnDriftMetric(column_name="predictions", stattest="wasserstein"),
+            ColumnDriftMetric(column_name="prediction", stattest="wasserstein"),
             ColumnSummaryMetric(column_name="prediction"),
             RegressionQualityMetric(),
-            RegressionPredictedVsActualScatter(),
             RegressionPredictedVsActualPlot(),
-            RegressionErrorPlot(),
-            RegressionAbsPercentageErrorPlot(),
-            RegressionErrorDistribution(),
-            RegressionErrorNormality(),
-            RegressionTopErrorMetric(),
+            RegressionErrorPlot()
         ],
         timestamp=datetime.datetime.now() + datetime.timedelta(days=i),
     )
@@ -187,21 +180,62 @@ def create_project(workspace: WorkspaceBase):
             size=1,
         )
     )
+
     project.dashboard.add_panel(
         DashboardPanelPlot(
-            title="Dataset Quality",
+            title="Target and Prediction",
             filter=ReportFilter(metadata_values={}, tag_values=[]),
             values=[
-                PanelValue(metric_id="DatasetDriftMetric", field_path="share_of_drifted_columns", legend="Drift Share"),
                 PanelValue(
-                    metric_id="DatasetMissingValuesMetric",
-                    field_path=DatasetMissingValuesMetric.fields.current.share_of_missing_values,
-                    legend="Missing Values Share",
+                    metric_id="ColumnSummaryMetric",
+                    field_path="current_characteristics.mean",
+                    metric_args={"column_name.name": "target"},
+                    legend="Target (daily mean)",
+                ),
+                PanelValue(
+                    metric_id="ColumnSummaryMetric",
+                    field_path="current_characteristics.mean",
+                    metric_args={"column_name.name": "prediction"},
+                    legend="Prediction (daily mean)",
                 ),
             ],
             plot_type=PlotType.LINE,
+            size=2,
         )
     )
+
+    project.dashboard.add_panel(
+        DashboardPanelPlot(
+            title="MAE",
+            filter=ReportFilter(metadata_values={}, tag_values=[]),
+            values=[
+                PanelValue(
+                    metric_id="RegressionQualityMetric",
+                    field_path=metrics.RegressionQualityMetric.fields.current.mean_abs_error,
+                    legend="MAE",
+                ),
+            ],
+            plot_type=PlotType.LINE,
+            size=1,
+        )
+    )
+
+    project.dashboard.add_panel(
+        DashboardPanelPlot(
+            title="MAPE",
+            filter=ReportFilter(metadata_values={}, tag_values=[]),
+            values=[
+                PanelValue(
+                    metric_id="RegressionQualityMetric",
+                    field_path=metrics.RegressionQualityMetric.fields.current.mean_abs_perc_error,
+                    legend="MAPE",
+                ),
+            ],
+            plot_type=PlotType.LINE,
+            size=1,
+        )
+    )
+
     project.dashboard.add_panel(
         DashboardPanelPlot(
             title="Target: Wasserstein drift distance",
@@ -261,7 +295,7 @@ if __name__ == '__main__':
         for dataset in [df_train, df_test]:
             predictions = []
             for i in tqdm(range(len(dataset))):
-                predictions.append(int(predict(dataset.iloc[i, 1:-1].values.tolist())['prediction'][0]/1000)*1000)
+                predictions.append(int(predict(dataset.iloc[i, 1:-1].values.tolist())['predictions'][0]/1000)*1000)
             dataset['prediction'] = predictions
 
         if (os.path.exists("workspace")):

@@ -38,7 +38,7 @@ EXP_LVL_CLASS = [ExperienceLevelFilters.ENTRY_LEVEL, ExperienceLevelFilters.ASSO
 EXP_LVL_INDEX = 0
 
 
-WORKSPACE = "workspace"
+WORKSPACE = "../../workspace"
 YOUR_PROJECT_NAME = "Linkedin jobs salary"
 YOUR_PROJECT_DESCRIPTION = "Monitor salary prediction on the linkedin jobs dataset"
 
@@ -123,7 +123,7 @@ def create_project(workspace: WorkspaceBase):
         DashboardPanelCounter(
             filter=ReportFilter(metadata_values={}, tag_values=[]),
             agg=CounterAgg.NONE,
-            title="Census Income Dataset (Adult)",
+            title="Linkedin job offers salary predictions",
         )
     )
     project.dashboard.add_panel(
@@ -171,12 +171,12 @@ def create_project(workspace: WorkspaceBase):
     )
     project.dashboard.add_panel(
         DashboardPanelPlot(
-            title="Age: Wasserstein drift distance",
+            title="Target: Wasserstein drift distance",
             filter=ReportFilter(metadata_values={}, tag_values=[]),
             values=[
                 PanelValue(
                     metric_id="ColumnDriftMetric",
-                    metric_args={"column_name.name": "age"},
+                    metric_args={"column_name.name": "target"},
                     field_path=ColumnDriftMetric.fields.drift_score,
                     legend="Drift Score",
                 ),
@@ -187,12 +187,12 @@ def create_project(workspace: WorkspaceBase):
     )
     project.dashboard.add_panel(
         DashboardPanelPlot(
-            title="Education-num: Wasserstein drift distance",
+            title="Predictions: Wasserstein drift distance",
             filter=ReportFilter(metadata_values={}, tag_values=[]),
             values=[
                 PanelValue(
                     metric_id="ColumnDriftMetric",
-                    metric_args={"column_name.name": "education-num"},
+                    metric_args={"column_name.name": "predictions"},
                     field_path=ColumnDriftMetric.fields.drift_score,
                     legend="Drift Score",
                 ),

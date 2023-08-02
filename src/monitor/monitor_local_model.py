@@ -5,6 +5,8 @@ Usage:
 python monitor_local_model.py --test_file ../../data/test.zip
 '''
 
+import os
+import shutil
 import sys
 import json
 import requests
@@ -45,9 +47,9 @@ YOUR_PROJECT_DESCRIPTION = "Monitor salary prediction on the linkedin jobs datas
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Query data from linkedin job posts")
-    parser.add_argument("--train_file", dest="train_file", type=str,
+    parser.add_argument("--train_file", dest="train_file", type=str, required=True,
                         help="Path of train file to monitor, example: ../../train.zip")
-    parser.add_argument("--test_file", dest="test_file", type=str,
+    parser.add_argument("--test_file", dest="test_file", type=str, required=True,
                         help="Path of test file to monitor, example: ../../test.zip")
 
     print("Parsing arguments")
@@ -231,6 +233,9 @@ if __name__ == '__main__':
                 predictions.append(int(predict(dataset.iloc[i, 1:-1].values.tolist())['predictions'][0]/1000)*1000)
             dataset['predictions'] = predictions
 
+        if (os.path.exists("workspace")):
+            print("Folder exixts")
+            shutil.rmtree("workspace")
         create_demo_project(df_train, df_test, "workspace")
 
         subprocess.run(["evidently", "ui"])

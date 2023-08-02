@@ -19,13 +19,21 @@ from linkedin_jobs_scraper.events import Events, EventData
 from linkedin_jobs_scraper.filters import ExperienceLevelFilters
 
 import datetime
-from evidently.metrics import ColumnDriftMetric, ColumnSummaryMetric, DatasetDriftMetric, DatasetMissingValuesMetric
-from evidently.metrics import ColumnSummaryMetric, DatasetDriftMetric, DatasetMissingValuesMetric
+from evidently import ColumnMapping
+from evidently.metrics import ColumnDriftMetric, ColumnSummaryMetric, DatasetDriftMetric, DatasetMissingValuesMetric, DataDriftTable
+from evidently.metrics import RegressionQualityMetric
+from evidently.metrics import RegressionPredictedVsActualScatter
+from evidently.metrics import RegressionPredictedVsActualPlot
+from evidently.metrics import RegressionErrorPlot
+from evidently.metrics import RegressionAbsPercentageErrorPlot
+from evidently.metrics import RegressionErrorDistribution
+from evidently.metrics import RegressionErrorNormality
+from evidently.metrics import RegressionTopErrorMetric
+from evidently.metrics import RegressionErrorBiasTable
 from evidently.report import Report
 from evidently.test_preset import DataDriftTestPreset
 from evidently.test_suite import TestSuite
 from evidently.ui.dashboards import CounterAgg, DashboardPanelCounter, DashboardPanelPlot, PanelValue, PlotType, ReportFilter
-from evidently.ui.remote import RemoteWorkspace
 from evidently.ui.workspace import Workspace, WorkspaceBase
 
 sys.path.append('../')  # nopep8
@@ -83,7 +91,7 @@ def on_data(data: EventData):
 
     data = df.iloc[0].to_list()
 
-    predicted_salary = int(predict(data[0:-1])['predictions'][0]/1000)*1000
+    predicted_salary = int(predict(data[0:-1])['prediction'][0]/1000)*1000
     if (data[-1]):
         print('Salary exists')
         print(f"Title {data[0]}, Predicted salary {predicted_salary}, True salary {data[-1]}")
@@ -91,20 +99,43 @@ def on_data(data: EventData):
         print(f"Title {data[0]}, Predicted salary {predicted_salary}, True salary {data[-1]}")
 
 
+
+
+https://github.com/evidentlyai/evidently/blob/dd6ccb8989e38ceff1b9c27b41d4ae2b10a5fef6/src/evidently/ui/demo_project.py#L75
+
+
 def create_report(train, test, i: int):
+    target = "target"
+    prediction = "prediction"
+
+    column_mapping = ColumnMapping()
+    column_mapping.target = target
+    column_mapping.prediction = prediction
+
     data_drift_report = Report(
         metrics=[
-            DatasetDriftMetric(),
+            DatasetDriftMetric(columns=['target', 'prediction']),
             DatasetMissingValuesMetric(),
-            ColumnDriftMetric(column_name="target", stattest="wasserstein"),
+            DataDriftTable(columns=['target', 'prediction']),
+            # ColumnDriftMetric(column_name="target", stattest="wasserstein"),
             ColumnSummaryMetric(column_name="target"),
-            ColumnDriftMetric(column_name="predictions", stattest="wasserstein"),
-            ColumnSummaryMetric(column_name="predictions"),
+            # ColumnDriftMetric(column_name="predictions", stattest="wasserstein"),
+            ColumnSummaryMetric(column_name="prediction"),
+            RegressionQualityMetric(),
+            RegressionPredictedVsActualScatter(),
+            RegressionPredictedVsActualPlot(),
+            RegressionErrorPlot(),
+            RegressionAbsPercentageErrorPlot(),
+            RegressionErrorDistribution(),
+            RegressionErrorNormality(),
+            RegressionTopErrorMetric(),
         ],
         timestamp=datetime.datetime.now() + datetime.timedelta(days=i),
     )
 
-    data_drift_report.run(reference_data=train, current_data=test.iloc[100 * i: 100 * (i + 1), :])
+    data_drift_report.run(reference_data=train,
+                          current_data=test.iloc[100 * i: 100 * (i + 1), :],
+                          column_mapping=column_mapping)
     return data_drift_report
 
 
@@ -194,7 +225,7 @@ def create_project(workspace: WorkspaceBase):
             values=[
                 PanelValue(
                     metric_id="ColumnDriftMetric",
-                    metric_args={"column_name.name": "predictions"},
+                    metric_args={"column_name.name": "prediction"},
                     field_path=ColumnDriftMetric.fields.drift_score,
                     legend="Drift Score",
                 ),
@@ -230,8 +261,8 @@ if __name__ == '__main__':
         for dataset in [df_train, df_test]:
             predictions = []
             for i in tqdm(range(len(dataset))):
-                predictions.append(int(predict(dataset.iloc[i, 1:-1].values.tolist())['predictions'][0]/1000)*1000)
-            dataset['predictions'] = predictions
+                predictions.append(int(predict(dataset.iloc[i, 1:-1].values.tolist())['prediction'][0]/1000)*1000)
+            dataset['prediction'] = predictions
 
         if (os.path.exists("workspace")):
             print("Folder exixts")

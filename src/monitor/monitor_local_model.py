@@ -20,15 +20,17 @@ from linkedin_jobs_scraper.filters import ExperienceLevelFilters
 
 import datetime
 from evidently import ColumnMapping, metrics
-from evidently.metrics import ColumnDriftMetric, ColumnSummaryMetric, DatasetDriftMetric, DatasetMissingValuesMetric, DataDriftTable
-from evidently.metrics import RegressionQualityMetric, RegressionPredictedVsActualPlot, RegressionErrorPlot, TextDescriptorsDriftMetric
+from evidently.metrics import ColumnDriftMetric, ColumnSummaryMetric, DatasetDriftMetric, DatasetMissingValuesMetric
+from evidently.metrics import RegressionQualityMetric, RegressionPredictedVsActualPlot, RegressionErrorPlot
+from evidently.metrics import DataDriftTable
 from evidently.report import Report
 from evidently.test_preset import DataDriftTestPreset
 from evidently.metric_preset import TextOverviewPreset
 from evidently.test_suite import TestSuite
+from evidently.tests import TestColumnDrift
 from evidently.ui.dashboards import CounterAgg, DashboardPanelCounter, DashboardPanelPlot, PanelValue, PlotType, ReportFilter
 from evidently.ui.workspace import Workspace, WorkspaceBase
-from evidently.descriptors import TextLength, TriggerWordsPresence, OOV, NonLetterCharacterPercentage, SentenceCount, WordCount, Sentiment
+from evidently.descriptors import TextLength, TriggerWordsPresence, OOV, NonLetterCharacterPercentage, WordCount
 from evidently.tests import *
 
 import nltk
@@ -146,12 +148,26 @@ def create_report(train, test, i: int):
 
 
 def create_test_suite(train, test, i: int):
+    column_mapping = ColumnMapping(
+        categorical_features=['experience', 'location'],
+        text_features=['title', 'description'],
+        target="target",
+        prediction="prediction"
+    )
+
     data_drift_test_suite = TestSuite(
-        tests=[DataDriftTestPreset()],
+        tests=[
+            # TestColumnDrift(column_name=TextLength().for_column("title")),
+            # TestColumnDrift(column_name=WordCount().for_column("title")),
+            TestColumnDrift(column_name=OOV().for_column("description"))
+            # TestColumnDrift(column_name=OOV().for_column("title")),
+            # TestColumnDrift(column_name=TriggerWordsPresence(words_list=['python']).for_column("description")),
+        ],
         timestamp=datetime.datetime.now() + datetime.timedelta(days=i),
     )
 
-    data_drift_test_suite.run(reference_data=train, current_data=test.iloc[100 * i: 100 * (i + 1), :])
+    data_drift_test_suite.run(reference_data=train,
+                              current_data=test.iloc[100 * i: 100 * (i + 1), :], column_mapping=column_mapping)
     return data_drift_test_suite
 
 
@@ -312,7 +328,6 @@ if __name__ == '__main__':
             dataset['prediction'] = predictions
 
         if (os.path.exists("workspace")):
-            print("Folder exixts")
             shutil.rmtree("workspace")
         create_demo_project(df_train, df_test, "workspace")
 

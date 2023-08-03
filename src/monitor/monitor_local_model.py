@@ -21,20 +21,21 @@ from linkedin_jobs_scraper.filters import ExperienceLevelFilters
 import datetime
 from evidently import ColumnMapping, metrics
 from evidently.metrics import ColumnDriftMetric, ColumnSummaryMetric, DatasetDriftMetric, DatasetMissingValuesMetric, DataDriftTable
-from evidently.metrics import RegressionQualityMetric
-from evidently.metrics import RegressionPredictedVsActualScatter
-from evidently.metrics import RegressionPredictedVsActualPlot
-from evidently.metrics import RegressionErrorPlot
-from evidently.metrics import RegressionAbsPercentageErrorPlot
-from evidently.metrics import RegressionErrorDistribution
-from evidently.metrics import RegressionErrorNormality
-from evidently.metrics import RegressionTopErrorMetric
-from evidently.metrics import RegressionErrorBiasTable
+from evidently.metrics import RegressionQualityMetric, RegressionPredictedVsActualPlot, RegressionErrorPlot, TextDescriptorsDriftMetric
 from evidently.report import Report
 from evidently.test_preset import DataDriftTestPreset
+from evidently.metric_preset import TextOverviewPreset
 from evidently.test_suite import TestSuite
 from evidently.ui.dashboards import CounterAgg, DashboardPanelCounter, DashboardPanelPlot, PanelValue, PlotType, ReportFilter
 from evidently.ui.workspace import Workspace, WorkspaceBase
+from evidently.descriptors import TextLength, TriggerWordsPresence, OOV, NonLetterCharacterPercentage, SentenceCount, WordCount, Sentiment
+from evidently.tests import *
+
+import nltk
+nltk.download('words')
+nltk.download('wordnet')
+nltk.download('omw-1.4')
+nltk.download('vader_lexicon')
 
 sys.path.append('../')  # nopep8
 from utils.data_utils import on_error, on_end, run_queries, get_scrapper  # nopep8
@@ -103,12 +104,13 @@ def on_data(data: EventData):
 
 
 def create_report(train, test, i: int):
-    target = "target"
-    prediction = "prediction"
 
-    column_mapping = ColumnMapping()
-    column_mapping.target = target
-    column_mapping.prediction = prediction
+    column_mapping = ColumnMapping(
+        categorical_features=['experience', 'location'],
+        text_features=['title', 'description'],
+        target="target",
+        prediction="prediction"
+    )
 
     data_drift_report = Report(
         metrics=[
@@ -119,9 +121,20 @@ def create_report(train, test, i: int):
             ColumnSummaryMetric(column_name="target"),
             ColumnDriftMetric(column_name="prediction", stattest="wasserstein"),
             ColumnSummaryMetric(column_name="prediction"),
+
+            TextOverviewPreset(column_name="description", descriptors={
+                "Description texts - OOV %": OOV(),
+                "Description texts - Non Letter %": NonLetterCharacterPercentage(),
+                "Description texts - Symbol Length": TextLength(),
+                "Description texts - Word Count": WordCount(),
+                "Description about python": TriggerWordsPresence(words_list=['python']),
+            }),
+
             RegressionQualityMetric(),
             RegressionPredictedVsActualPlot(),
             RegressionErrorPlot()
+
+
         ],
         timestamp=datetime.datetime.now() + datetime.timedelta(days=i),
     )

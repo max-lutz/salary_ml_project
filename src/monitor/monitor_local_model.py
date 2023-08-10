@@ -32,7 +32,7 @@ from evidently.ui.workspace import Workspace, WorkspaceBase
 
 
 from evidently.tests import TestColumnDrift
-from evidently.tests import TestValueRange
+from evidently.tests import TestValueRange, TestValueRMSE
 from evidently.tests import TestNumberOfOutRangeValues
 from evidently.tests import TestShareOfOutRangeValues
 from evidently.tests import TestMeanInNSigmas
@@ -185,6 +185,10 @@ def create_test_suite(train, test, i: int):
             TestValueRange(column_name=WordCount().for_column("description")),
             TestValueRange(column_name=OOV().for_column("description")),
             TestValueRange(column_name=TextLength().for_column("description")),
+
+            TestColumnDrift(column_name="experience"),
+
+            TestValueRMSE()
         ],
     )
 

@@ -27,11 +27,32 @@ from evidently.report import Report
 from evidently.test_preset import DataDriftTestPreset
 from evidently.metric_preset import TextOverviewPreset
 from evidently.test_suite import TestSuite
-from evidently.tests import TestColumnDrift
 from evidently.ui.dashboards import CounterAgg, DashboardPanelCounter, DashboardPanelPlot, PanelValue, PlotType, ReportFilter
 from evidently.ui.workspace import Workspace, WorkspaceBase
-from evidently.descriptors import TextLength, TriggerWordsPresence, OOV, NonLetterCharacterPercentage, WordCount
-from evidently.tests import *
+
+
+from evidently.tests import TestColumnDrift
+from evidently.tests import TestValueRange
+from evidently.tests import TestNumberOfOutRangeValues
+from evidently.tests import TestShareOfOutRangeValues
+from evidently.tests import TestMeanInNSigmas
+from evidently.tests import TestColumnValueMin
+from evidently.tests import TestColumnValueMax
+from evidently.tests import TestColumnValueMean
+from evidently.tests import TestColumnValueMedian
+from evidently.tests import TestColumnValueStd
+from evidently.tests import TestColumnQuantile
+
+from evidently.tests import TestHighlyCorrelatedColumns
+from evidently.tests import TestTargetFeaturesCorrelations
+from evidently.tests import TestPredictionFeaturesCorrelations
+from evidently.tests import TestCorrelationChanges
+from evidently.tests import TestNumberOfDriftedColumns
+from evidently.tests import TestShareOfDriftedColumns
+
+from evidently.descriptors import TextLength, TriggerWordsPresence, OOV, NonLetterCharacterPercentage, SentenceCount, WordCount, Sentiment, RegExp
+
+from sklearn import datasets
 
 import nltk
 nltk.download('words')
@@ -157,14 +178,29 @@ def create_test_suite(train, test, i: int):
 
     data_drift_test_suite = TestSuite(
         tests=[
-            # TestColumnDrift(column_name=TextLength().for_column("title")),
-            # TestColumnDrift(column_name=WordCount().for_column("title")),
-            TestColumnDrift(column_name=OOV().for_column("description"))
-            # TestColumnDrift(column_name=OOV().for_column("title")),
-            # TestColumnDrift(column_name=TriggerWordsPresence(words_list=['python']).for_column("description")),
+            TestValueRange(column_name=WordCount().for_column("title")),
+            TestValueRange(column_name=OOV().for_column("title")),
+            TestValueRange(column_name=TextLength().for_column("title")),
+
+            TestValueRange(column_name=WordCount().for_column("description")),
+            TestValueRange(column_name=OOV().for_column("description")),
+            TestValueRange(column_name=TextLength().for_column("description")),
         ],
-        timestamp=datetime.datetime.now() + datetime.timedelta(days=i),
     )
+
+    # table_column_test_suite = TestSuite(tests=[
+    #     TestColumnDrift(column_name=RegExp(reg_exp=r'.*\?.*', display_name="Questions").for_column("Review_Text")),
+    #     TestValueRange(column_name=TextLength(display_name="TextLength").for_column("Review_Text")),
+    #     TestNumberOfOutRangeValues(column_name=TextLength(display_name="TextLength").for_column("Review_Text")),
+    #     TestShareOfOutRangeValues(column_name=TextLength(display_name="TextLength").for_column("Review_Text")),
+    #     TestMeanInNSigmas(column_name=TextLength(display_name="TextLength").for_column("Review_Text")),
+    #     TestColumnValueMin(column_name=SentenceCount(display_name="SentenceCount").for_column("Review_Text")),
+    #     TestColumnValueMax(column_name=WordCount(display_name="WordCount").for_column("Review_Text")),
+    #     TestColumnValueMean(column_name=Sentiment(display_name="Sentiment").for_column("Review_Text")),
+    #     TestColumnValueMedian(column_name=TextLength(display_name="TextLength").for_column("Review_Text")),
+    #     TestColumnValueStd(column_name=TextLength(display_name="TextLength").for_column("Review_Text")),
+    #     TestColumnQuantile(column_name=TextLength(display_name="TextLength").for_column("Review_Text"), quantile=0.25),
+    # ])
 
     data_drift_test_suite.run(reference_data=train,
                               current_data=test.iloc[100 * i: 100 * (i + 1), :], column_mapping=column_mapping)

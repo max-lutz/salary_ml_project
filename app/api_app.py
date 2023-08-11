@@ -1,3 +1,10 @@
+"""
+
+Usage: python app/api_app.py
+
+"""
+
+
 from mangum import Mangum
 import uvicorn
 from fastapi.responses import JSONResponse
@@ -35,7 +42,6 @@ nltk.data.path.append("nltkdata")
 def predict(data):
 
     data = json.loads(data)
-    print(data)
     df = pd.DataFrame([[data['title'], data['location'], data['experience'], data['description']]],
                       columns=["title", "location", "experience", "description"],)
     prediction = pipeline.predict(df)

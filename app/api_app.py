@@ -34,8 +34,9 @@ nltk.data.path.append("nltkdata")
 
 def predict(data):
 
-    data = json.load(data)
-    df = pd.DataFrame([data['title'], data['location'], data['experience'], data['description']],
+    data = json.loads(data)
+    print(data)
+    df = pd.DataFrame([[data['title'], data['location'], data['experience'], data['description']]],
                       columns=["title", "location", "experience", "description"],)
     prediction = pipeline.predict(df)
     return prediction
@@ -44,7 +45,7 @@ def predict(data):
 @app.get('/')
 def my_function(data: str):
     pred = predict(data)
-    return JSONResponse({"predictions": pred})
+    return JSONResponse({"predictions": list(pred)})
 
 
 if __name__ == "__main__":

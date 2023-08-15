@@ -2,6 +2,8 @@
 
 Usage: python app/api_app.py
 
+{"title":"data analyst", "location":"Chicago", "experience":"ENTRY_LEVEL", "description":"test big salary"}
+
 """
 
 
@@ -39,7 +41,7 @@ if not os.path.exists('nltkdata'):
 nltk.data.path.append("nltkdata")
 
 
-def predict(data):
+def predict_from_data(data):
 
     data = json.loads(data)
     df = pd.DataFrame([[data['title'], data['location'], data['experience'], data['description']]],
@@ -49,8 +51,8 @@ def predict(data):
 
 
 @app.get('/')
-def my_function(data: str):
-    pred = predict(data)
+def predict(data: str):
+    pred = predict_from_data(data)
     return JSONResponse({"predictions": list(pred)})
 
 

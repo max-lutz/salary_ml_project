@@ -28,7 +28,7 @@ app = FastAPI()
 handler = Mangum(app)
 
 # Load the saved model
-pipeline_path = "models/model.pkl"
+pipeline_path = "../models/model.pkl"
 with open(pipeline_path, 'rb') as file:
     pipeline = pickle.load(file)
 
@@ -42,15 +42,14 @@ nltk.data.path.append("nltkdata")
 
 
 def predict_from_data(data):
-
     data = json.loads(data)
-    df = pd.DataFrame([[data['title'], data['location'], data['experience'], data['description']]],
+    df = pd.DataFrame([[data["title"], data["location"], data['experience'], data['description']]],
                       columns=["title", "location", "experience", "description"],)
     prediction = pipeline.predict(df)
     return prediction
 
 
-@app.get('/')
+@app.post('/')
 def predict(data: str):
     pred = predict_from_data(data)
     return JSONResponse({"predictions": list(pred)})

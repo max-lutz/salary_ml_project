@@ -14,7 +14,6 @@ import argparse
 import subprocess
 import pandas as pd
 from tqdm import tqdm
-from linkedin_jobs_scraper import LinkedinScraper
 from linkedin_jobs_scraper.events import Events, EventData
 from linkedin_jobs_scraper.filters import ExperienceLevelFilters
 
@@ -24,7 +23,6 @@ from evidently.metrics import ColumnDriftMetric, ColumnSummaryMetric, DatasetDri
 from evidently.metrics import RegressionQualityMetric, RegressionPredictedVsActualPlot, RegressionErrorPlot
 from evidently.metrics import DataDriftTable
 from evidently.report import Report
-from evidently.test_preset import DataDriftTestPreset
 from evidently.metric_preset import TextOverviewPreset
 from evidently.test_suite import TestSuite
 from evidently.ui.dashboards import CounterAgg, DashboardPanelCounter, DashboardPanelPlot, PanelValue, PlotType, ReportFilter
@@ -33,24 +31,8 @@ from evidently.ui.workspace import Workspace, WorkspaceBase
 
 from evidently.tests import TestColumnDrift
 from evidently.tests import TestValueRange, TestValueRMSE
-from evidently.tests import TestNumberOfOutRangeValues
-from evidently.tests import TestShareOfOutRangeValues
-from evidently.tests import TestMeanInNSigmas
-from evidently.tests import TestColumnValueMin
-from evidently.tests import TestColumnValueMax
-from evidently.tests import TestColumnValueMean
-from evidently.tests import TestColumnValueMedian
-from evidently.tests import TestColumnValueStd
-from evidently.tests import TestColumnQuantile
 
-from evidently.tests import TestHighlyCorrelatedColumns
-from evidently.tests import TestTargetFeaturesCorrelations
-from evidently.tests import TestPredictionFeaturesCorrelations
-from evidently.tests import TestCorrelationChanges
-from evidently.tests import TestNumberOfDriftedColumns
-from evidently.tests import TestShareOfDriftedColumns
-
-from evidently.descriptors import TextLength, TriggerWordsPresence, OOV, NonLetterCharacterPercentage, SentenceCount, WordCount, Sentiment, RegExp
+from evidently.descriptors import TextLength, TriggerWordsPresence, OOV, NonLetterCharacterPercentage, WordCount
 
 from sklearn import datasets
 

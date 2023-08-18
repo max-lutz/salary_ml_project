@@ -50,7 +50,7 @@ from utils.preprocess_utils import generate_salary, preprocess_text, clean_datas
 
 
 def predict(data):
-    url = 'http://0.0.0.0:9000/'
+    url = 'https://iovdak7a527hkhw3lm2b7ao2r40cspgo.lambda-url.us-east-1.on.aws/'
     data_dict = {"title": data[0], "location": data[1], "experience": data[2], "description": data[3]}
     data_dict = {"data": json.dumps(data_dict)}
 
@@ -62,9 +62,7 @@ def predict(data):
     }
 
     data_json = json.dumps(data_dict)
-    print(data_json)
-    response = requests.post('http://0.0.0.0:9000/', params=data_dict, headers=headers)
-    print(response)
+    response = requests.post(url, params=data_dict, headers=headers)
     return response.json()
 
 
@@ -80,7 +78,7 @@ with title:
     st.title('Salary model monitoring tool')
     st.markdown("""
             This app allows you monitor the salary model hosted on AWS
-            * The code can be accessed at [code](https://github.com/max-lutz/ML-regression-tool).
+            * The code can be accessed at [code](https://github.com/max-lutz/salary_ml_project).
             * Click on how to use this app to get more explanation.
             """)
 
@@ -91,12 +89,34 @@ with title_2:
             """)
         st.write("")
 
-st.sidebar.header('Test API')
+
+st.sidebar.header('Test AWS API')
+run_api_test = False
+run_api_test = st.sidebar.button('Run aws api test')
+if (run_api_test):
+    df_train = pd.read_csv("data/train.zip").iloc[0:10]
+    df_test = pd.read_csv("data/test.zip").iloc[500:510]
+
+    print("Preparing data")
+    for dataset in [df_train, df_test]:
+        predictions = []
+        for i in tqdm(range(len(dataset))):
+            predictions.append(int(predict(dataset.iloc[i, 1:-1].values.tolist())['predictions'][0]/1000)*1000)
+        dataset['prediction'] = predictions
+    st.write(df_train)
+    st.write(df_test)
+
+
+st.sidebar.header('User input')
 title = st.sidebar.text_input('Job title')
 location = st.sidebar.selectbox('Location', ['Chicago'])
 experience = st.sidebar.selectbox(
     'Experience level', ['ENTRY_LEVEL', 'ASSOCIATE', 'MID_SENIOR', 'DIRECTOR', 'EXECUTIVE'])
 description = st.sidebar.text_input('Job description')
-
 data = [title, location, experience, description]
-st.sidebar.write(predict(data))
+
+make_prediction = False
+make_prediction = st.sidebar.button('Make prediction')
+if (make_prediction):
+    st.sidebar.write(f"Salary predicted: ${int(predict(data)['predictions'][0]/1000)*1000}")
+    make_prediction = False

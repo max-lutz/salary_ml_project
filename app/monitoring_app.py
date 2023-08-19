@@ -5,56 +5,22 @@ Usage:
 python monitor_local_model.py --test_file ../../data/test.zip
 '''
 
-import os
-import shutil
+
 import sys
 import json
 import requests
-import argparse
-import subprocess
 import pandas as pd
 from tqdm import tqdm
 
 import streamlit as st
 import pandas as pd
-import numpy as np
-import os
-import joblib
-from linkedin_jobs_scraper import LinkedinScraper
-from linkedin_jobs_scraper.events import Events, EventData
-from linkedin_jobs_scraper.filters import ExperienceLevelFilters
-
-import datetime
-from evidently import ColumnMapping, metrics
-from evidently.metrics import ColumnDriftMetric, ColumnSummaryMetric, DatasetDriftMetric, DatasetMissingValuesMetric
-from evidently.metrics import RegressionQualityMetric, RegressionPredictedVsActualPlot, RegressionErrorPlot
-from evidently.metrics import DataDriftTable
-from evidently.report import Report
-from evidently.test_preset import DataDriftTestPreset
-from evidently.metric_preset import TextOverviewPreset
-from evidently.test_suite import TestSuite
-from evidently.ui.dashboards import CounterAgg, DashboardPanelCounter, DashboardPanelPlot, PanelValue, PlotType, ReportFilter
-from evidently.ui.workspace import Workspace, WorkspaceBase
-
-
-from evidently.tests import TestColumnDrift, TestValueRange, TestValueRMSE, TestNumberOfOutRangeValues, TestShareOfOutRangeValues
-
-from evidently.tests import TestHighlyCorrelatedColumns, TestTargetFeaturesCorrelations, TestPredictionFeaturesCorrelations
-from evidently.tests import TestCorrelationChanges, TestNumberOfDriftedColumns, TestShareOfDriftedColumns
-
-from evidently.descriptors import TextLength, TriggerWordsPresence, OOV, NonLetterCharacterPercentage, SentenceCount, WordCount, Sentiment, RegExp
-
-
-sys.path.append('../src/')  # nopep8
-from utils.preprocess_utils import generate_salary, preprocess_text, clean_dataset  # nopep8
+import time
 
 
 def predict(data):
     url = 'https://iovdak7a527hkhw3lm2b7ao2r40cspgo.lambda-url.us-east-1.on.aws/'
     data_dict = {"title": data[0], "location": data[1], "experience": data[2], "description": data[3]}
     data_dict = {"data": json.dumps(data_dict)}
-
-    print(data_dict)
 
     headers = {
         'accept': 'application/json',
@@ -94,16 +60,35 @@ st.sidebar.header('Test AWS API')
 run_api_test = False
 run_api_test = st.sidebar.button('Run aws api test')
 if (run_api_test):
-    df_train = pd.read_csv("data/train.zip").iloc[0:10]
-    df_test = pd.read_csv("data/test.zip").iloc[500:510]
+    df_test = pd.read_csv("data/test.zip").sample(3)
+    api_latency = []
 
-    print("Preparing data")
-    for dataset in [df_train, df_test]:
+    for dataset in [df_test]:
         predictions = []
         for i in tqdm(range(len(dataset))):
+            start_time = time.time()
             predictions.append(int(predict(dataset.iloc[i, 1:-1].values.tolist())['predictions'][0]/1000)*1000)
+            api_latency.append(time.time()-start_time)
         dataset['prediction'] = predictions
-    st.write(df_train)
+        dataset['latency'] = api_latency
+        dataset['rmse'] = abs(dataset['prediction'] - dataset['target'])
+
+    st.header("Monitoring dashboard")
+    st.subheader("Latency")
+    row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.columns((SPACER/10, ROW*0.4, SPACER, ROW, SPACER/10))
+    with row1_1:
+        st.markdown(f"##### Request sent: {len(df_test)}")
+        st.markdown(f"##### Average latency: {round(df_test['latency'].mean(), 2)} seconds")
+        st.markdown(f"##### Latency [99 percentile] sent: {round(df_test['latency'].quantile(0.99), 2)} seconds")
+
+    st.subheader("Predictions errors")
+    row2_spacer1, row2_1, row2_spacer2, row2_2, row2_spacer3 = st.columns((SPACER/10, ROW*0.4, SPACER, ROW, SPACER/10))
+    with row2_1:
+        st.markdown(f"##### Average salary predicted: ${round(df_test['prediction'].mean(), 0)}")
+        st.markdown(f"##### Average RMSE: {round(df_test['rmse'].mean(), 2)}")
+        st.markdown(f"##### RMSE [99 percentile]: {round(df_test['rmse'].quantile(0.99), 0)}")
+
+    st.subheader('Last predictions made')
     st.write(df_test)
 
 

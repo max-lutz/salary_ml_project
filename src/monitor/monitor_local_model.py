@@ -2,7 +2,7 @@
 Script to download recent job offers from linkedin based on keyword given by the user
 
 Usage: 
-python monitor_local_model.py --test_file ../../data/test.zip
+python monitor_local_model.py --train_file ../../data/train.zip --test_file ../../data/test.zip
 '''
 
 import os

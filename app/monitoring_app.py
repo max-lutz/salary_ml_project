@@ -2,19 +2,18 @@
 Script to download recent job offers from linkedin based on keyword given by the user
 
 Usage: 
-python monitor_local_model.py --test_file ../../data/test.zip
+streamlit run monitoring_app.py
 '''
 
 
-import sys
 import json
 import requests
 import pandas as pd
 from tqdm import tqdm
 
 import streamlit as st
-import pandas as pd
 import time
+import plotly.express as px
 
 
 def predict(data):
@@ -72,21 +71,35 @@ if (run_api_test):
         dataset['prediction'] = predictions
         dataset['latency'] = api_latency
         dataset['rmse'] = abs(dataset['prediction'] - dataset['target'])
+        dataset['id_plot'] = [int(i) for i in range(len(dataset))]
 
     st.header("Monitoring dashboard")
     st.subheader("Latency")
-    row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.columns((SPACER/10, ROW*0.4, SPACER, ROW, SPACER/10))
-    with row1_1:
+    col1, col2, col3 = st.columns(3)
+    with (col1):
         st.markdown(f"##### Request sent: {len(df_test)}")
+    with (col2):
         st.markdown(f"##### Average latency: {round(df_test['latency'].mean(), 2)} seconds")
+    with (col3):
         st.markdown(f"##### Latency [99 percentile] sent: {round(df_test['latency'].quantile(0.99), 2)} seconds")
 
+    fig = px.line(df_test, x="id_plot", y="latency", title='Latency in the last predictions')
+    st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+
     st.subheader("Predictions errors")
-    row2_spacer1, row2_1, row2_spacer2, row2_2, row2_spacer3 = st.columns((SPACER/10, ROW*0.4, SPACER, ROW, SPACER/10))
-    with row2_1:
+    col1_1, col2_1, col3_1 = st.columns(3)
+    with (col1_1):
         st.markdown(f"##### Average salary predicted: ${round(df_test['prediction'].mean(), 0)}")
+    with (col2_1):
         st.markdown(f"##### Average RMSE: {round(df_test['rmse'].mean(), 2)}")
+    with (col3_1):
         st.markdown(f"##### RMSE [99 percentile]: {round(df_test['rmse'].quantile(0.99), 0)}")
+
+    df = pd.melt(df_test, id_vars=['id_plot'], value_vars=['prediction', 'target'])
+    fig = px.line(df, x="id_plot", y="value", color="variable", symbol="variable", title='True value vs prediction')
+    st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+    fig = px.line(df_test, x="id_plot", y="rmse", title='RMSE')
+    st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
     st.subheader('Last predictions made')
     st.write(df_test)

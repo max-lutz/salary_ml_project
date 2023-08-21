@@ -112,11 +112,12 @@ if (run_api_test):
             time.sleep(1)
 
 st.sidebar.header('User input')
-title = st.sidebar.text_input('Job title')
+title = st.sidebar.text_input('Job title', placeholder="Data analyst [example]")
 location = st.sidebar.selectbox('Location', ['Chicago'])
 experience = st.sidebar.selectbox(
     'Experience level', ['ENTRY_LEVEL', 'ASSOCIATE', 'MID_SENIOR', 'DIRECTOR', 'EXECUTIVE'])
-description = st.sidebar.text_input('Job description')
+description = st.sidebar.text_input(
+    'Job description', placeholder="Startup looking to hire its first data analyst [example]")
 data = [title, location, experience, description]
 
 make_prediction = False

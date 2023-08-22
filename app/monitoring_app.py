@@ -65,7 +65,14 @@ with title_2:
 if (run_api_test):
     placeholder = st.empty()
 
-    df_test = pd.read_csv(os.path.join(os.getcwd(), "data", "test.zip")).sample(15)
+    local_path = os.path.join(os.getcwd(), "data", "test.zip")
+    server_path = os.path.join(os.getcwd(), "app", "data", "test.zip")
+    if (os.path.exists(local_path)):
+        df_test = pd.read_csv(local_path).sample(15)
+    elif (os.path.exists(server_path)):
+        df_test = pd.read_csv(server_path).sample(15)
+    else:
+        print(os.listdir(os.path.join(os.getcwd())))
     df_test['prediction'] = 0
     df_test['latency'] = 0
     df_test['rmse'] = 0

@@ -51,6 +51,10 @@ title_spacer2, title_2, title_spacer_2 = st.columns((.1, ROW, .1))
 with title_2:
     with st.expander("How to use this app"):
         st.markdown("""
+            This app allows you to interact with a salary prediction model hosted on AWS. \n\n
+            The menu on the left allows you to predict the salary based on the inputs. \n\n
+            If you click on the button "Run aws api test", the app makes 15 predictions using the api and display some
+            data used to monitor the api.
             """)
         st.write("")
 
@@ -109,7 +113,7 @@ if (run_api_test):
 
             st.subheader('Last predictions made')
             st.write(df_to_display)
-            time.sleep(1)
+            time.sleep(0.3)
 
 st.sidebar.header('User input')
 title = st.sidebar.text_input('Job title', placeholder="Data analyst [example]")

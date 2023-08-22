@@ -6,6 +6,7 @@ streamlit run monitoring_app.py
 '''
 
 
+import os
 import json
 import requests
 import pandas as pd
@@ -64,7 +65,7 @@ with title_2:
 if (run_api_test):
     placeholder = st.empty()
 
-    df_test = pd.read_csv("data/test.zip").sample(15)
+    df_test = pd.read_csv(os.path.join(os.getcwd(), "data", "test.zip")).sample(15)
     df_test['prediction'] = 0
     df_test['latency'] = 0
     df_test['rmse'] = 0

@@ -2,17 +2,20 @@
 
 This project presents an end-to-end machine learning solution to problem of predicting salary from job offers posted on linkedin.
 
+You can access the online app to monitor the model hosted on AWS: https://salary-ml-project.streamlit.app/
+
 This projects consists of the following steps:
-- Problem definition
-- Data collection
-- Data preprocessing and feature engineering
-- Model selection, training, and fine-tuning
-- Model evaluation
-- Model deployment
-- Model monitoring
+- **Problem definition**: Predicting the salary of job offers on linkedin
+- **Data collection**: Web-scraping script on the linkedin website
+- **Data preprocessing and feature engineering**: Extracting numbers from the job description to estimate the salary
+- **Model selection, training, and fine-tuning**: Selecting base models with good performances and fast training out of 15 model classes. Training more than 100 models using bayesian optimization to fine-tune hyperparameters.
+- **Model evaluation**: Mlflow for comparing model performances
+- **Model deployment**: Local deployment using mlflow and online deployment on AWS using fastapi
+- **Model monitoring**: Local monitoring on data quality, data drift and model performances. Online monitoring on API latency, and predictions errors.
 
+<br>
 
-How to use this reporitory:
+## How to use this reporitory:
 1. Clone the reporitory
 2. Run pip install -r requirements.txt
 3. Train a new model: python src/train/train_model.py --in data/linkedin_jobs.csv --n_eval 25

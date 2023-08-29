@@ -46,6 +46,7 @@ with title:
             This app allows you monitor the salary model hosted on AWS
             * The code can be accessed at [code](https://github.com/max-lutz/salary_ml_project).
             * Click on how to use this app to get more explanation.
+            * You can access the data monitoring page by clicking on the button (upper left)
             """)
 
 title_spacer2, title_2, title_spacer_2 = st.columns((.1, ROW, .1))

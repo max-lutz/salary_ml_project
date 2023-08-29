@@ -5,7 +5,7 @@ Usage: python train_model.py --in ../../data/linkedin_jobs.csv --n_eval 1
 
 
 Setup rest api: 
-mlflow models serve -m file:///home/maxou1909/Desktop/STREAMLIT_APPS/salary_ml_project/mlruns/dfac3ee2f7454f45b74b57ac25ae0c86/artifacts/salary_models -h 127.0.0.1 -p 8001 --env-manager=local
+mlflow models serve -m file:///home/maxou1909/Desktop/STREAMLIT_APPS/salary_ml_project/mlruns/1150745c17ec4a9fb7c5898aa441a340/artifacts/salary_models -h 127.0.0.1 -p 8001 --env-manager=local
 
 Query from rest api
 curl -X POST -H "Content-Type:application/json" --data '{"dataframe_split":{"columns":["title", "location", "experience", "description"],"data":[["data analyst","chicago","ENTRY_LEVEL", "test big salary"]]}}' http://127.0.0.1:8001/invocations

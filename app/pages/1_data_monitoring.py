@@ -15,7 +15,7 @@ from pages.src.utils import EntityNotFoundError
 from pages.src.utils import get_reports_mapping
 from pages.src.utils import list_periods
 
-PROJECTS_DIR: Path = Path("projects")
+
 REPORTS_DIR_NAME: Text = "reports"
 
 
@@ -25,6 +25,12 @@ if __name__ == "__main__":
     set_page_container_style()
 
     # Extract available project names and reports directory name
+    if (os.path.exists("projects")):
+        PROJECTS_DIR: Path = Path("projects")
+    elif (os.path.exists("../projects")):
+        PROJECTS_DIR: Path = Path("../projects")
+    elif (os.path.exists("app/projects")):
+        PROJECTS_DIR: Path = Path("app/projects")
     projects: List[Text] = []
     for path in os.listdir(PROJECTS_DIR):
         if not path.startswith("."):

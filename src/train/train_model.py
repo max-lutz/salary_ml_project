@@ -41,14 +41,17 @@ import mlflow
 
 
 # setup mlflow directory and experiment
-mlflow_directory = f'file://{os.path.abspath("../../mlruns")}'
+mlflow_directory = f'mlruns'
 
 mlflow.set_tracking_uri(uri=mlflow_directory)
 exp = mlflow.get_experiment_by_name(name='Linkedin_salary')
+print(exp, mlflow_directory)
 if not exp:
     experiment_id = mlflow.create_experiment(name='Linkedin_salary', artifact_location=mlflow_directory)
 else:
     experiment_id = exp.experiment_id
+    
+print(f"experiment id: {experiment_id}")
 
 
 def parse_arguments():
@@ -215,7 +218,7 @@ def get_parameters_cross_validation():
     models_list = {
         'Linear regressor': LinearRegression(),
         'Ridge': Ridge(),
-        'PoissonRegressor': PoissonRegressor(max_iter=10_000),
+        'PoissonRegressor': PoissonRegressor(max_iter=1_000),
         'GammaRegressor': GammaRegressor(max_iter=1000),
         'SVR': SVR(),
         'LGBMRegressor': LGBMRegressor(verbosity=-1, force_row_wise=True),

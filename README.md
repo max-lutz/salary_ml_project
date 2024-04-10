@@ -6,12 +6,12 @@ You can access the online app to monitor the model hosted on AWS: https://salary
 
 This projects consists of the following steps:
 - **Problem definition**: Predicting the salary of job offers on linkedin
-- **Data collection**: Web-scraping script on the linkedin website
-- **Data preprocessing and feature engineering**: Extracting numbers from the job description to estimate the salary
-- **Model selection, training, and fine-tuning**: Selecting base models with good performances and fast training out of 15 model classes. Training more than 100 models using bayesian optimization to fine-tune hyperparameters.
-- **Model evaluation**: Mlflow for comparing model performances
-- **Model deployment**: Local deployment using mlflow and online deployment on AWS using fastapi
-- **Model monitoring**: Local monitoring on data quality, data drift and model performances. Online monitoring on API latency, and predictions errors.
+- **Data collection**: Web-scraping script on the linkedin website [python]
+- **Data preprocessing and feature engineering**: Extracting numbers from the job description to estimate the salary [pandas]
+- **Model selection, training, and fine-tuning**: Selecting base models with good performances and fast training out of 15 model classes. Training more than 100 models using bayesian optimization to fine-tune hyperparameters. [scikit-learn, mlflow]
+- **Model evaluation**: Mlflow for comparing model performances [mlflow]
+- **Model deployment**: Local deployment using mlflow and online deployment on AWS using fastapi [mlflow, fastapi]
+- **Model monitoring**: Local monitoring on data quality, data drift and model performances. Online monitoring on API latency, and predictions errors. [evidently]
 <br/>
 
 ![salary_ml](https://github.com/max-lutz/salary_ml_project/assets/39080117/a1fc9d75-dbf1-4cc5-bb7b-6559e485ec38)
